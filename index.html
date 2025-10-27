@@ -253,7 +253,6 @@
         </div>
       </section>
       
-      <!-- <<< ඔබගේ ඉල්ලීම පරිදි, මෙම කොටසේ Back බොත්තම නැවත සකස් කර ඇත >>> -->
       <section id="feedback" class="screen hidden" aria-label="Customer feedback">
         <div class="container">
           <div class="backRow" style="width:100%">
@@ -380,6 +379,7 @@
       const SHOW_DURATION = 15000;
       const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
       let manualOverrideUntil = 0;
+      let lastCycleSeed = -1; // <<< History එකට එකතු කිරීම සඳහා වූ Flag එක
 
       function mulberry32(a) {
           return function() {
@@ -411,10 +411,16 @@
                 oddEl.textContent = "--.--";
                 oddStatusEl.textContent = `Next round in ${countdown}s...`;
             } else {
-                const cycleSeed = Math.floor(now / CYCLE_DURATION);
-                const oddValue = getSynchronizedOdd(cycleSeed);
+                const currentCycleSeed = Math.floor(now / CYCLE_DURATION);
+                const oddValue = getSynchronizedOdd(currentCycleSeed);
                 const timeLeftInShow = (SHOW_DURATION - (timeIntoCycle - COUNTDOWN_DURATION));
                 const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
+
+                // <<< ඔබගේ ඉල්ලීම අනුව, නව odd අගය History එකට එකතු කිරීම >>>
+                if (currentCycleSeed !== lastCycleSeed) {
+                    pushHistory(oddValue);
+                    lastCycleSeed = currentCycleSeed;
+                }
                 
                 oddEl.textContent = formatOdd(oddValue);
                 oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
