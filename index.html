@@ -135,8 +135,23 @@
     .btn { width: 100%; padding: 16px 18px; border-radius: 14px; border: none; color: #fff; background: var(--btn-bg); font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: clamp(18px, 3.8vw, 24px); letter-spacing: 1.2px; cursor: pointer; box-shadow: 0 8px 24px rgba(255, 193, 7, 0.35), 0 0 24px rgba(255, 193, 7, 0.25); transition: transform .06s ease, filter .2s ease, background .2s ease; }
     .btn:hover { filter: brightness(1.06); }
     .btn:active { transform: translateY(1px) scale(0.995); }
-    .tools { width: 100%; display: flex; gap: 10px; flex-wrap: wrap; }
+    .tools { width: 100%; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
     .small-btn { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-border); background: rgba(255, 193, 7, 0.08); color: #FFF8E1; font-size: 13px; cursor: pointer; font-weight: 700; }
+    #onlineCounter {
+      flex: 1; min-width: 120px;
+      padding: 10px 12px; border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 193, 7, 0.08);
+      color: #FFF8E1; font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    #onlineCounter::before {
+      content: ''; width: 8px; height: 8px;
+      background-color: var(--ok);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--ok);
+      animation: pulse 1.5s infinite;
+    }
     .socials { display: flex; gap: 14px; margin-top: 6px; }
     .socials a { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; color: #fff; text-decoration: none; box-shadow: 0 0 14px rgba(255, 193, 7, 0.2), 0 4px 12px rgba(0,0,0,0.35); }
     .socials img { width: 22px; height: 22px; display: block; }
@@ -159,7 +174,7 @@
     .status.bad { display:inline-block; color: var(--bad); background: rgba(255,90,90,0.12); border: 1.5px solid rgba(255,90,90,0.45); text-shadow: 0 0 8px rgba(255,90,90,0.25); }
     .feedWrap { width: 100%; display: grid; gap: 14px; }
     .feedList { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-    .feedItem { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 193, 7, 0.06); border: 1.5px solid var(--card-border); }
+    .feedItem { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 193, 7, 0.06); border: 1.5px solid var(--card-border); animation: feed-in 0.5s ease; }
     .feedHead { display: flex; align-items: center; gap: 10px; }
     .avatar{ width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--avbg, #785408); color: #ffffff; box-shadow: 0 0 12px rgba(255, 193, 7, 0.25); }
     .avatar svg{ width: 22px; height: 22px; opacity: .95; filter: drop-shadow(0 0 6px rgba(0,0,0,0.15)); }
@@ -192,6 +207,8 @@
     .loadLabel { justify-self: end; font-family: 'Orbitron', monospace; font-weight: 900; font-size: 12px; color: #FFECB3; text-shadow: 0 0 10px rgba(255, 193, 7, 0.45); letter-spacing: 1px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes popIn { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes feed-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 8px var(--ok); } 50% { box-shadow: 0 0 12px 2px var(--ok); } }
   </style>
 </head>
 <body>
@@ -228,6 +245,7 @@
             <button id="connectBtn" class="small-btn">Connect</button>
             <button id="feedbackBtn" class="small-btn">Customer Feedback</button>
             <button id="clearBtn" class="small-btn">Clear History</button>
+            <div id="onlineCounter">Online: --</div>
           </div>
           <div id="history" class="history" aria-label="Recent values"></div>
           <div class="socials" aria-label="Social links">
@@ -255,10 +273,7 @@
       
       <section id="feedback" class="screen hidden" aria-label="Customer feedback">
         <div class="container">
-          <div class="backRow" style="width:100%">
-            <button id="backFromFeedback" class="linkBtn">← Back</button>
-            <div style="opacity:.8;font-size:13px">Customer Feedback</div>
-          </div>
+          <div class="backRow" style="width:100%"><button id="backFromFeedback" class="linkBtn">← Back</button><div style="opacity:.8;font-size:13px">Customer Feedback</div></div>
           <div class="feedWrap">
             <ul id="feedList" class="feedList"></ul>
             <div class="sendBox">
@@ -318,6 +333,7 @@
       const fbSendBtn = document.getElementById('fbSend');
       const fbNote = document.getElementById('fbNote');
       const adminDataView = document.getElementById('adminDataView');
+      const onlineCounterEl = document.getElementById('onlineCounter');
 
       const INTRO_TIME = 2200;
       let introDone = false;
@@ -379,7 +395,7 @@
       const SHOW_DURATION = 15000;
       const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
       let manualOverrideUntil = 0;
-      let lastCycleSeed = -1; // <<< History එකට එකතු කිරීම සඳහා වූ Flag එක
+      let lastCycleSeed = -1;
 
       function mulberry32(a) {
           return function() {
@@ -415,8 +431,7 @@
                 const oddValue = getSynchronizedOdd(currentCycleSeed);
                 const timeLeftInShow = (SHOW_DURATION - (timeIntoCycle - COUNTDOWN_DURATION));
                 const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
-
-                // <<< ඔබගේ ඉල්ලීම අනුව, නව odd අගය History එකට එකතු කිරීම >>>
+                
                 if (currentCycleSeed !== lastCycleSeed) {
                     pushHistory(oddValue);
                     lastCycleSeed = currentCycleSeed;
@@ -501,9 +516,12 @@
         setTimeout(() => { window.open(webLink, '_blank', 'noopener,noreferrer'); }, 500);
       }
       
+      const RANDOM_NAMES = ["Nimal Perera", "Sunil Silva", "Kamal Fernando", "Kasun Bandara", "Ruwan Gamage", "Priya Kumari", "Saman Jayasuriya", "Gayan Dias", "Chathura Sampath", "Pasan Madhawa", "Shehan Wijesinghe", "Lakmali Herath", "Nadeesha Dilrukshi", "Mihiri Sandunika", "Ashen Vithanage"];
+      const RANDOM_MESSAGES = ["signal හොදයි 👍", "මම ගොඩක් සල්ලි හෙව්වා මේකෙන් 💰", "ඇප් එක නම් මරු", "සුපිරි signals bro", "win win win only!", "loss cover කරගන්න පුළුවන් වුණා, thanks", "patta app eka", "100% sure signals!", "VIPCNA code eka weda, supiri", "Thank you very much!", "Best signal app I've used", "maru signal eka..", "niyamai ayye..."];
       const INITIAL_FEEDS = [{ name: 'Dulan Chamika', msg: `අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`, }, { name: 'Dilshan Jayavardana', msg: 'Signal nam Signal Supiri Ahh' }, { name: 'ජානකී හේරත්', msg: 'ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී' }, { name: 'වසන්ත ජයතිලක', msg: 'Thank Brother Aviator Signal මරු ❤️' },];
       const AV_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#00897b','#7cb342','#f9a825','#ef6c00'];
       const PERSON_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/></svg>`;
+      let feedbackInterval = null;
       
       const escapeHtml = (t) => t.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
       const highlightPromo = (text) => escapeHtml(text).replace(/\bVIPCNA\b/gi, '<span class="promoCode">VIPCNA</span>');
@@ -519,6 +537,17 @@
       
       function renderInitialFeeds() { feedList.innerHTML = ''; INITIAL_FEEDS.forEach(f => feedList.appendChild(createFeedItem(f.name, f.msg))); }
       
+      function showRandomFeedback() {
+        if (!feedbackScr.classList.contains('show')) return;
+        const randomName = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+        const randomMsg = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
+        const newItem = createFeedItem(randomName, randomMsg);
+        feedList.prepend(newItem);
+        if (feedList.children.length > 8) {
+          feedList.lastChild.remove();
+        }
+      }
+
       function handleSendFeedback() {
         const name = (fbNameInput.value.trim() || 'Anonymous');
         const text = fbTextInput.value.trim();
@@ -527,6 +556,11 @@
         fbTextInput.value = ''; fbNameInput.value = '';
         fbNote.textContent = 'යවන ලදී ✓';
         setTimeout(() => fbNote.textContent = '', 1200);
+      }
+
+      function updateOnlineCounter() {
+        const count = Math.floor(Math.random() * 41) + 30; // 30 to 70
+        onlineCounterEl.textContent = `Online: ${count}`;
       }
       
       async function fetchAdminData() {
@@ -594,9 +628,19 @@
         genBtn.addEventListener('click', handleGenerateClick);
         clearBtn.addEventListener('click', () => { history.length = 0; renderHistory(); });
         connectBtn.addEventListener('click', () => showScreen('connect'));
-        feedbackBtn.addEventListener('click', () => showScreen('feedback'));
-        backHome.addEventListener('click', () => showScreen('home'));
-        backFromFeedback.addEventListener('click', () => showScreen('home'));
+        feedbackBtn.addEventListener('click', () => {
+            showScreen('feedback');
+            if (feedbackInterval) clearInterval(feedbackInterval);
+            feedbackInterval = setInterval(showRandomFeedback, 5000);
+        });
+        backHome.addEventListener('click', () => {
+            showScreen('home');
+            clearInterval(feedbackInterval);
+        });
+        backFromFeedback.addEventListener('click', () => {
+            showScreen('home');
+            clearInterval(feedbackInterval);
+        });
         sysConnect.addEventListener('click', handleSystemConnect);
         fbSendBtn.addEventListener('click', handleSendFeedback);
         document.querySelectorAll('.open-tg').forEach(a => a.addEventListener('click', handleSocialLink));
@@ -616,6 +660,8 @@
         resizeStarfield();
         requestAnimationFrame(animateStarfield);
         setInterval(gameLoop, 250);
+        updateOnlineCounter();
+        setInterval(updateOnlineCounter, 5000);
       }
 
       init();
